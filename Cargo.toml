@@ -1,0 +1,8 @@
+[package]
+name = "etl"
+version = "0.1.0"
+authors = ["Jamie Blondin <jblondin@gmail.com>"]
+
+[dependencies]
+csv = "0.14"
+yaml-rust = "*"
