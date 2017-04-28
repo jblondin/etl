@@ -6,3 +6,4 @@ authors = ["Jamie Blondin <jblondin@gmail.com>"]
 [dependencies]
 csv = "0.14"
 yaml-rust = "*"
+matrix = { git = "https://github.com/jblondin/matrix" }

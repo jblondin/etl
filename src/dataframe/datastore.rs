@@ -8,11 +8,11 @@ use dataframe::config::FieldType;
 
 #[derive(Debug)]
 pub struct DataStore {
-    unsigned: HashMap<String, Vec<u64>>,
-    signed: HashMap<String, Vec<i64>>,
-    string: HashMap<String, Vec<String>>,
-    boolean: HashMap<String, Vec<bool>>,
-    float: HashMap<String, Vec<f64>>,
+    pub unsigned: HashMap<String, Vec<u64>>,
+    pub signed: HashMap<String, Vec<i64>>,
+    pub string: HashMap<String, Vec<String>>,
+    pub boolean: HashMap<String, Vec<bool>>,
+    pub float: HashMap<String, Vec<f64>>,
 }
 fn max_len<K, T>(h: &HashMap<K, Vec<T>>) -> usize where K: Eq + Hash {
     h.values().fold(0, |acc, v| max(acc, v.len()))

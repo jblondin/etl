@@ -3,6 +3,8 @@ use std::path::{Path};
 
 use csv;
 
+use matrix::Matrix;
+
 use dataframe::datastore::DataStore;
 use dataframe::config::{self, Config, FieldType};
 use dataframe::error::DataFrameError;
@@ -46,6 +48,41 @@ impl DataFrame {
         let transformed_data = try!(transform_data(&untransformed_data, &config));
 
         return Ok((config, DataFrame { data: transformed_data } as DataFrame))
+    }
+
+    pub fn as_matrix(&self) -> Result<(Vec<String>, Matrix), DataFrameError> {
+        if !self.data.is_homogeneous() {
+            return Err(DataFrameError::new("DataFrame columns are not same length"))
+        }
+        let mut fieldnames: Vec<String> = Vec::new();
+        let mut data_vec: Vec<f64> = Vec::new();
+        let mut ncols = 0;
+
+        // floating point values
+        for (k, v) in self.data.float.iter() {
+            fieldnames.push(k.clone());
+            data_vec.append(&mut v.clone());
+            ncols += 1;
+        }
+        // signed integer values
+        for (k, v) in self.data.signed.iter() {
+            fieldnames.push(k.clone());
+            data_vec.append(&mut v.iter().map(|&s| s as f64).collect());
+            ncols += 1;
+        }
+        // unsigned integer values
+        for (k, v) in self.data.unsigned.iter() {
+            fieldnames.push(k.clone());
+            data_vec.append(&mut v.iter().map(|&u| u as f64).collect());
+            ncols += 1;
+        }
+        // boolean values
+        for (k, v) in self.data.boolean.iter() {
+            fieldnames.push(k.clone());
+            data_vec.append(&mut v.iter().map(|&b| if b { 1.0 } else { 0.0 }).collect());
+            ncols += 1;
+        }
+        Ok((fieldnames, Matrix::from_vec(data_vec, self.data.nrows(), ncols)))
     }
 }
 
