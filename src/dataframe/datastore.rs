@@ -79,7 +79,7 @@ impl DataStore {
         match field_type {
             FieldType::Unsigned => self.insert_unsigned(field_name, try!(value_str.parse())),
             FieldType::Signed   => self.insert_signed(field_name, try!(value_str.parse())),
-            FieldType::Str      => self.insert_string(field_name, try!(value_str.parse())),
+            FieldType::Str      => self.insert_string(field_name, value_str),
             FieldType::Bool     => self.insert_boolean(field_name, try!(value_str.parse())),
             FieldType::Float    => self.insert_float(field_name, try!(value_str.parse())),
         }

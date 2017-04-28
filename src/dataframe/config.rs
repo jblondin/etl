@@ -165,7 +165,6 @@ fn parse_transforms(transforms_yaml: &Yaml, source_types: &FieldTypeMap)
     match *transforms_yaml {
         Yaml::Array(ref transforms_hash) => {
             for transform_yaml in transforms_hash {
-                println!("{:#?}", transform_yaml);
                 let (name, transform) = try!(parse_transform(&transform_yaml, source_types));
                 if transforms.contains_key(&name) {
                     transforms.get_mut(&name).unwrap().push(transform);

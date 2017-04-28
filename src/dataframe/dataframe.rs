@@ -43,7 +43,6 @@ impl DataFrame {
         let used_fields = try!(parse_headers(&mut reader, &config));
 
         let untransformed_data = try!(extract_data(&mut reader, &used_fields));
-        println!("{:#?}", config);
         let transformed_data = try!(transform_data(&untransformed_data, &config));
 
         return Ok((config, DataFrame { data: transformed_data } as DataFrame))
@@ -60,8 +59,6 @@ fn parse_headers<R>(reader: &mut csv::Reader<R>, config: &Config)
                 config.get_source_type(field_name)));
         }
     }
-    println!("{:?}", headers);
-    println!("{:?}", used_fields);
     Ok(used_fields)
 }
 
