@@ -174,6 +174,10 @@ fn parse_transforms(transforms_yaml: &Yaml, source_types: &FieldTypeMap)
             }
             Ok(transforms)
         },
+        Yaml::BadValue => {
+            // transforms doesn't exist (this is allowed)
+            Ok(transforms)
+        }
         _ => {
             Err(DataFrameError::new("'transforms' does not contains a list"))
         }
