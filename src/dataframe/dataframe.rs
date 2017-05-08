@@ -116,8 +116,8 @@ fn extract_data<R>(reader: &mut csv::Reader<R>, used_fields: &Vec<FieldInfo>)
 }
 
 macro_rules! transform {
-    ($field_name:expr, $dest_name:expr, $tf_merge_f:expr, $src_f:expr, $tf:expr) => {
-        try!($tf_merge_f($dest_name, try!($src_f(&$field_name).ok_or(
+    ($field_name:expr, $tf_merge_f:expr, $src:expr, $tf:expr) => {
+        try!($tf_merge_f(try!($src.ok_or(
             format!("untransformed field name '{}' not found", $field_name)))
             .iter().map(|v| $tf(v)).collect()
         ));
@@ -127,7 +127,7 @@ macro_rules! transform {
 
 fn transform_data(untransformed_data: &DataStore, config: &Config)
         -> Result<DataStore, DataFrameError> {
-    let mut transformed_data = DataStore::empty();
+    let mut tf_data = DataStore::empty();
 
     for field_name in config.field_names() {
         let source_type = config.get_source_type(&field_name);
@@ -139,219 +139,219 @@ fn transform_data(untransformed_data: &DataStore, config: &Config)
                     match transform.trtype {
                         TransformType::UnsignedToUnsigned(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_unsigned(dname, src),
-                                |field| untransformed_data.get_unsigned_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_unsigned(transform.dest_name(), tr_src),
+                                untransformed_data.get_unsigned_field(&field_name),
                                 t
                             )
                         },
                         TransformType::UnsignedToSigned(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_signed(dname, src),
-                                |field| untransformed_data.get_unsigned_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_signed(transform.dest_name(), tr_src),
+                                untransformed_data.get_unsigned_field(&field_name),
                                 t
                             )
                         },
                         TransformType::UnsignedToStr(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_string(dname, src),
-                                |field| untransformed_data.get_unsigned_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_string(transform.dest_name(), tr_src),
+                                untransformed_data.get_unsigned_field(&field_name),
                                 t
                             )
                         },
                         TransformType::UnsignedToBool(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_boolean(dname, src),
-                                |field| untransformed_data.get_unsigned_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_boolean(transform.dest_name(), tr_src),
+                                untransformed_data.get_unsigned_field(&field_name),
                                 t
                             )
                         },
                         TransformType::UnsignedToFloat(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_float(dname, src),
-                                |field| untransformed_data.get_unsigned_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_float(transform.dest_name(), tr_src),
+                                untransformed_data.get_unsigned_field(&field_name),
                                 t
                             )
                         },
 
                         TransformType::SignedToUnsigned(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_unsigned(dname, src),
-                                |field| untransformed_data.get_signed_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_unsigned(transform.dest_name(), tr_src),
+                                untransformed_data.get_signed_field(&field_name),
                                 t
                             )
                         },
                         TransformType::SignedToSigned(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_signed(dname, src),
-                                |field| untransformed_data.get_signed_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_signed(transform.dest_name(), tr_src),
+                                untransformed_data.get_signed_field(&field_name),
                                 t
                             )
                         },
                         TransformType::SignedToStr(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_string(dname, src),
-                                |field| untransformed_data.get_signed_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_string(transform.dest_name(), tr_src),
+                                untransformed_data.get_signed_field(&field_name),
                                 t
                             )
                         },
                         TransformType::SignedToBool(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_boolean(dname, src),
-                                |field| untransformed_data.get_signed_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_boolean(transform.dest_name(), tr_src),
+                                untransformed_data.get_signed_field(&field_name),
                                 t
                             )
                         },
                         TransformType::SignedToFloat(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_float(dname, src),
-                                |field| untransformed_data.get_signed_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_float(transform.dest_name(), tr_src),
+                                untransformed_data.get_signed_field(&field_name),
                                 t
                             )
                         },
 
                         TransformType::StrToUnsigned(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_unsigned(dname, src),
-                                |field| untransformed_data.get_string_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_unsigned(transform.dest_name(), tr_src),
+                                untransformed_data.get_string_field(&field_name),
                                 t
                             )
                         },
                         TransformType::StrToSigned(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_signed(dname, src),
-                                |field| untransformed_data.get_string_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_signed(transform.dest_name(), tr_src),
+                                untransformed_data.get_string_field(&field_name),
                                 t
                             )
                         },
                         TransformType::StrToStr(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_string(dname, src),
-                                |field| untransformed_data.get_string_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_string(transform.dest_name(), tr_src),
+                                untransformed_data.get_string_field(&field_name),
                                 t
                             )
                         },
                         TransformType::StrToBool(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_boolean(dname, src),
-                                |field| untransformed_data.get_string_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_boolean(transform.dest_name(), tr_src),
+                                untransformed_data.get_string_field(&field_name),
                                 t
                             )
                         },
                         TransformType::StrToFloat(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_float(dname, src),
-                                |field| untransformed_data.get_string_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_float(transform.dest_name(), tr_src),
+                                untransformed_data.get_string_field(&field_name),
                                 t
                             )
                         },
 
                         TransformType::BoolToUnsigned(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_unsigned(dname, src),
-                                |field| untransformed_data.get_boolean_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_unsigned(transform.dest_name(), tr_src),
+                                untransformed_data.get_boolean_field(&field_name),
                                 t
                             )
                         },
                         TransformType::BoolToSigned(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_signed(dname, src),
-                                |field| untransformed_data.get_boolean_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_signed(transform.dest_name(), tr_src),
+                                untransformed_data.get_boolean_field(&field_name),
                                 t
                             )
                         },
                         TransformType::BoolToStr(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_string(dname, src),
-                                |field| untransformed_data.get_boolean_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_string(transform.dest_name(), tr_src),
+                                untransformed_data.get_boolean_field(&field_name),
                                 t
                             )
                         },
                         TransformType::BoolToBool(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_boolean(dname, src),
-                                |field| untransformed_data.get_boolean_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_boolean(transform.dest_name(), tr_src),
+                                untransformed_data.get_boolean_field(&field_name),
                                 t
                             )
                         },
                         TransformType::BoolToFloat(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_float(dname, src),
-                                |field| untransformed_data.get_boolean_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_float(transform.dest_name(), tr_src),
+                                untransformed_data.get_boolean_field(&field_name),
                                 t
                             )
                         },
 
                         TransformType::FloatToUnsigned(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_unsigned(dname, src),
-                                |field| untransformed_data.get_float_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_unsigned(transform.dest_name(), tr_src),
+                                untransformed_data.get_float_field(&field_name),
                                 t
                             )
                         },
                         TransformType::FloatToSigned(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_signed(dname, src),
-                                |field| untransformed_data.get_float_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_signed(transform.dest_name(), tr_src),
+                                untransformed_data.get_float_field(&field_name),
                                 t
                             )
                         },
                         TransformType::FloatToStr(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_string(dname, src),
-                                |field| untransformed_data.get_float_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_string(transform.dest_name(), tr_src),
+                                untransformed_data.get_float_field(&field_name),
                                 t
                             )
                         },
                         TransformType::FloatToBool(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_boolean(dname, src),
-                                |field| untransformed_data.get_float_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_boolean(transform.dest_name(), tr_src),
+                                untransformed_data.get_float_field(&field_name),
                                 t
                             )
                         },
                         TransformType::FloatToFloat(ref t) => {
                             transform!(
-                                field_name, transform.dest_name(),
-                                |dname, src| transformed_data.merge_float(dname, src),
-                                |field| untransformed_data.get_float_field(field),
+                                field_name,
+                                |tr_src| tf_data.merge_float(transform.dest_name(), tr_src),
+                                untransformed_data.get_float_field(&field_name),
                                 t
                             )
                         },
                     }
                 }
                 if keep_source {
-                    try!(transformed_data.merge_field(&field_name, &source_type,
+                    try!(tf_data.merge_field(&field_name, &source_type,
                         untransformed_data));
                 }
             },
             None => {
-                try!(transformed_data.merge_field(&field_name, &source_type, untransformed_data));
+                try!(tf_data.merge_field(&field_name, &source_type, untransformed_data));
             }
         }
     }
-    Ok(transformed_data)
+    Ok(tf_data)
 }
