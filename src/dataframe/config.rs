@@ -9,7 +9,7 @@ use yaml_rust::{Yaml, YamlLoader};
 use dataframe::{DataFrameError};
 use dataframe::transform::{Transform, TransformType};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FieldType {
     Unsigned,
     Signed,

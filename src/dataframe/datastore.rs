@@ -6,8 +6,28 @@ use dataframe::{DataFrameError};
 use dataframe::config::FieldType;
 
 
+#[derive(Debug, Clone)]
+pub struct FieldInfo {
+    pub index: usize,
+    pub name: String,
+    pub ty: FieldType,
+}
+impl FieldInfo {
+    pub fn new(index: usize, name: String, ty: FieldType) -> FieldInfo {
+        FieldInfo {
+            index: index,
+            name: name,
+            ty: ty,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct DataStore {
+    // store field list in both ordered (by index) and searchable (by name) form
+    pub fields: Vec<FieldInfo>,
+    pub field_map: HashMap<String, usize>,
+
     pub unsigned: HashMap<String, Vec<u64>>,
     pub signed: HashMap<String, Vec<i64>>,
     pub string: HashMap<String, Vec<String>>,
@@ -50,6 +70,9 @@ fn insert_value<T>(h: &mut HashMap<String, Vec<T>>, k: String, v: T) {
 impl DataStore {
     pub fn empty() -> DataStore {
         DataStore {
+            fields: Vec::new(),
+            field_map: HashMap::new(),
+
             unsigned: HashMap::new(),
             signed: HashMap::new(),
             string: HashMap::new(),
@@ -58,19 +81,29 @@ impl DataStore {
         }
     }
 
+    fn add_field(&mut self, field_name: String, field_type: FieldType) {
+        let index = self.fields.len();
+        self.fields.push(FieldInfo::new(index, field_name.clone(), field_type));
+        self.field_map.insert(field_name, index);
+    }
     pub fn insert_unsigned(&mut self, field_name: String, value: u64) {
+        self.add_field(field_name.clone(), FieldType::Unsigned);
         insert_value(&mut self.unsigned, field_name, value);
     }
     pub fn insert_signed(&mut self, field_name: String, value: i64) {
+        self.add_field(field_name.clone(), FieldType::Signed);
         insert_value(&mut self.signed, field_name, value);
     }
     pub fn insert_string(&mut self, field_name: String, value: String) {
+        self.add_field(field_name.clone(), FieldType::Str);
         insert_value(&mut self.string, field_name, value);
     }
     pub fn insert_boolean(&mut self, field_name: String, value: bool) {
+        self.add_field(field_name.clone(), FieldType::Bool);
         insert_value(&mut self.boolean, field_name, value);
     }
     pub fn insert_float(&mut self, field_name: String, value: f64) {
+        self.add_field(field_name.clone(), FieldType::Float);
         insert_value(&mut self.float, field_name, value);
     }
 
@@ -89,6 +122,7 @@ impl DataStore {
 
     pub fn merge_unsigned(&mut self, field_name: &String, v: Vec<u64>)
             -> Result<(), DataFrameError> {
+        self.add_field(field_name.clone(), FieldType::Unsigned);
         match self.unsigned.insert(field_name.clone(), v) {
             Some(_) => { Err(DataFrameError::new(
                 &format!("merging field {} clobbered existing field", field_name)[..])) },
@@ -97,6 +131,7 @@ impl DataStore {
     }
     pub fn merge_signed(&mut self, field_name: &String, v: Vec<i64>)
             -> Result<(), DataFrameError> {
+        self.add_field(field_name.clone(), FieldType::Signed);
         match self.signed.insert(field_name.clone(), v) {
             Some(_) => { Err(DataFrameError::new(
                 &format!("merging field {} clobbered existing field", field_name)[..])) },
@@ -105,6 +140,7 @@ impl DataStore {
     }
     pub fn merge_string(&mut self, field_name: &String, v: Vec<String>)
             -> Result<(), DataFrameError> {
+        self.add_field(field_name.clone(), FieldType::Str);
         match self.string.insert(field_name.clone(), v) {
             Some(_) => { Err(DataFrameError::new(
                 &format!("merging field {} clobbered existing field", field_name)[..])) },
@@ -113,6 +149,7 @@ impl DataStore {
     }
     pub fn merge_boolean(&mut self, field_name: &String, v: Vec<bool>)
             -> Result<(), DataFrameError> {
+        self.add_field(field_name.clone(), FieldType::Bool);
         match self.boolean.insert(field_name.clone(), v) {
             Some(_) => { Err(DataFrameError::new(
                 &format!("merging field {} clobbered existing field", field_name)[..])) },
@@ -121,6 +158,7 @@ impl DataStore {
     }
     pub fn merge_float(&mut self, field_name: &String, v: Vec<f64>)
             -> Result<(), DataFrameError> {
+        self.add_field(field_name.clone(), FieldType::Float);
         match self.float.insert(field_name.clone(), v) {
             Some(_) => { Err(DataFrameError::new(
                 &format!("merging field {} clobbered existing field", field_name)[..])) },
@@ -139,7 +177,7 @@ impl DataStore {
                 try!(src.signed.get(field_name)
                 .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
                     .clone())),
-            FieldType::Str   => try!(self.merge_string(field_name,
+            FieldType::Str      => try!(self.merge_string(field_name,
                 try!(src.string.get(field_name)
                 .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
                     .clone())),

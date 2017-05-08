@@ -5,26 +5,10 @@ use csv;
 
 use matrix::Matrix;
 
-use dataframe::datastore::DataStore;
+use dataframe::datastore::{DataStore, FieldInfo};
 use dataframe::config::{self, Config, FieldType};
 use dataframe::error::DataFrameError;
 use dataframe::transform::{TransformType};
-
-#[derive(Debug)]
-struct FieldInfo {
-    index: usize,
-    name: String,
-    ty: FieldType,
-}
-impl FieldInfo {
-    fn new(index: usize, name: String, ty: FieldType) -> FieldInfo {
-        FieldInfo {
-            index: index,
-            name: name,
-            ty: ty,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct DataFrame {
@@ -56,33 +40,36 @@ impl DataFrame {
         }
         let mut fieldnames: Vec<String> = Vec::new();
         let mut data_vec: Vec<f64> = Vec::new();
-        let mut ncols = 0;
 
-        // floating point values
-        for (k, v) in self.data.float.iter() {
-            fieldnames.push(k.clone());
-            data_vec.append(&mut v.clone());
-            ncols += 1;
+        for f in &self.data.fields {
+            if f.ty == FieldType::Str {
+                // no conversion for string fields
+                continue;
+            }
+            match f.ty {
+                FieldType::Unsigned => {
+                    data_vec.append(&mut self.data.get_unsigned_field(&f.name)
+                        .expect("datastore inconsistent").iter().map(|&u| u as f64).collect());
+                },
+                FieldType::Signed   => {
+                    data_vec.append(&mut self.data.get_signed_field(&f.name)
+                        .expect("datastore inconsistent").iter().map(|&s| s as f64).collect());
+                },
+                FieldType::Bool     => {
+                    data_vec.append(&mut self.data.get_boolean_field(&f.name)
+                        .expect("datastore inconsistent").iter()
+                        .map(|&b| if b { 1.0 } else { 0.0 }).collect());
+                },
+                FieldType::Float    => {
+                    data_vec.append(&mut self.data.get_float_field(&f.name)
+                        .expect("datastore inconsistent").clone());
+                },
+                _                   => { unreachable!() }
+            }
+            fieldnames.push(f.name.clone());
         }
-        // signed integer values
-        for (k, v) in self.data.signed.iter() {
-            fieldnames.push(k.clone());
-            data_vec.append(&mut v.iter().map(|&s| s as f64).collect());
-            ncols += 1;
-        }
-        // unsigned integer values
-        for (k, v) in self.data.unsigned.iter() {
-            fieldnames.push(k.clone());
-            data_vec.append(&mut v.iter().map(|&u| u as f64).collect());
-            ncols += 1;
-        }
-        // boolean values
-        for (k, v) in self.data.boolean.iter() {
-            fieldnames.push(k.clone());
-            data_vec.append(&mut v.iter().map(|&b| if b { 1.0 } else { 0.0 }).collect());
-            ncols += 1;
-        }
-        Ok((fieldnames, Matrix::from_vec(data_vec, self.data.nrows(), ncols)))
+
+        Ok((fieldnames, Matrix::from_vec(data_vec, self.data.nrows(), self.data.fields.len())))
     }
 }
 
