@@ -115,8 +115,14 @@ fn extract_data<R>(reader: &mut csv::Reader<R>, used_fields: &Vec<FieldInfo>)
     Ok(data)
 }
 
-macro_rules! trnsfrm {
-    () => ()
+macro_rules! transform {
+    ($field_name:expr, $dest_name:expr, $tf_merge_f:expr, $src_f:expr, $tf:expr) => {
+        try!($tf_merge_f($dest_name, try!($src_f(&$field_name).ok_or(
+            format!("untransformed field name '{}' not found", $field_name)))
+            .iter().map(|v| $tf(v)).collect()
+        ));
+
+    }
 }
 
 fn transform_data(untransformed_data: &DataStore, config: &Config)
@@ -132,183 +138,208 @@ fn transform_data(untransformed_data: &DataStore, config: &Config)
                     keep_source |= transform.keep_source();
                     match transform.trtype {
                         TransformType::UnsignedToUnsigned(ref t) => {
-                            try!(transformed_data.merge_unsigned(transform.dest_name(),
-                                try!(untransformed_data.get_unsigned_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_unsigned(dname, src),
+                                |field| untransformed_data.get_unsigned_field(field),
+                                t
+                            )
                         },
                         TransformType::UnsignedToSigned(ref t) => {
-                            try!(transformed_data.merge_signed(transform.dest_name(),
-                                try!(untransformed_data.get_unsigned_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_signed(dname, src),
+                                |field| untransformed_data.get_unsigned_field(field),
+                                t
+                            )
                         },
                         TransformType::UnsignedToStr(ref t) => {
-                            try!(transformed_data.merge_string(transform.dest_name(),
-                                try!(untransformed_data.get_unsigned_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_string(dname, src),
+                                |field| untransformed_data.get_unsigned_field(field),
+                                t
+                            )
                         },
                         TransformType::UnsignedToBool(ref t) => {
-                            try!(transformed_data.merge_boolean(transform.dest_name(),
-                                try!(untransformed_data.get_unsigned_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_boolean(dname, src),
+                                |field| untransformed_data.get_unsigned_field(field),
+                                t
+                            )
                         },
                         TransformType::UnsignedToFloat(ref t) => {
-                            try!(transformed_data.merge_float(transform.dest_name(),
-                                try!(untransformed_data.get_unsigned_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_float(dname, src),
+                                |field| untransformed_data.get_unsigned_field(field),
+                                t
+                            )
                         },
 
                         TransformType::SignedToUnsigned(ref t) => {
-                            try!(transformed_data.merge_unsigned(transform.dest_name(),
-                                try!(untransformed_data.get_signed_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_unsigned(dname, src),
+                                |field| untransformed_data.get_signed_field(field),
+                                t
+                            )
                         },
                         TransformType::SignedToSigned(ref t) => {
-                            try!(transformed_data.merge_signed(transform.dest_name(),
-                                try!(untransformed_data.get_signed_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_signed(dname, src),
+                                |field| untransformed_data.get_signed_field(field),
+                                t
+                            )
                         },
                         TransformType::SignedToStr(ref t) => {
-                            try!(transformed_data.merge_string(transform.dest_name(),
-                                try!(untransformed_data.get_signed_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_string(dname, src),
+                                |field| untransformed_data.get_signed_field(field),
+                                t
+                            )
                         },
                         TransformType::SignedToBool(ref t) => {
-                            try!(transformed_data.merge_boolean(transform.dest_name(),
-                                try!(untransformed_data.get_signed_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_boolean(dname, src),
+                                |field| untransformed_data.get_signed_field(field),
+                                t
+                            )
                         },
                         TransformType::SignedToFloat(ref t) => {
-                            try!(transformed_data.merge_float(transform.dest_name(),
-                                try!(untransformed_data.get_signed_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_float(dname, src),
+                                |field| untransformed_data.get_signed_field(field),
+                                t
+                            )
                         },
 
                         TransformType::StrToUnsigned(ref t) => {
-                            try!(transformed_data.merge_unsigned(transform.dest_name(),
-                                try!(untransformed_data.get_string_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_unsigned(dname, src),
+                                |field| untransformed_data.get_string_field(field),
+                                t
+                            )
                         },
                         TransformType::StrToSigned(ref t) => {
-                            try!(transformed_data.merge_signed(transform.dest_name(),
-                                try!(untransformed_data.get_string_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_signed(dname, src),
+                                |field| untransformed_data.get_string_field(field),
+                                t
+                            )
                         },
                         TransformType::StrToStr(ref t) => {
-                            try!(transformed_data.merge_string(transform.dest_name(),
-                                try!(untransformed_data.get_string_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_string(dname, src),
+                                |field| untransformed_data.get_string_field(field),
+                                t
+                            )
                         },
                         TransformType::StrToBool(ref t) => {
-                            try!(transformed_data.merge_boolean(transform.dest_name(),
-                                try!(untransformed_data.get_string_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_boolean(dname, src),
+                                |field| untransformed_data.get_string_field(field),
+                                t
+                            )
                         },
                         TransformType::StrToFloat(ref t) => {
-                            try!(transformed_data.merge_float(transform.dest_name(),
-                                try!(untransformed_data.get_string_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_float(dname, src),
+                                |field| untransformed_data.get_string_field(field),
+                                t
+                            )
                         },
 
                         TransformType::BoolToUnsigned(ref t) => {
-                            try!(transformed_data.merge_unsigned(transform.dest_name(),
-                                try!(untransformed_data.get_boolean_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_unsigned(dname, src),
+                                |field| untransformed_data.get_boolean_field(field),
+                                t
+                            )
                         },
                         TransformType::BoolToSigned(ref t) => {
-                            try!(transformed_data.merge_signed(transform.dest_name(),
-                                try!(untransformed_data.get_boolean_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_signed(dname, src),
+                                |field| untransformed_data.get_boolean_field(field),
+                                t
+                            )
                         },
                         TransformType::BoolToStr(ref t) => {
-                            try!(transformed_data.merge_string(transform.dest_name(),
-                                try!(untransformed_data.get_boolean_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_string(dname, src),
+                                |field| untransformed_data.get_boolean_field(field),
+                                t
+                            )
                         },
                         TransformType::BoolToBool(ref t) => {
-                            try!(transformed_data.merge_boolean(transform.dest_name(),
-                                try!(untransformed_data.get_boolean_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_boolean(dname, src),
+                                |field| untransformed_data.get_boolean_field(field),
+                                t
+                            )
                         },
                         TransformType::BoolToFloat(ref t) => {
-                            try!(transformed_data.merge_float(transform.dest_name(),
-                                try!(untransformed_data.get_boolean_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_float(dname, src),
+                                |field| untransformed_data.get_boolean_field(field),
+                                t
+                            )
                         },
 
                         TransformType::FloatToUnsigned(ref t) => {
-                            try!(transformed_data.merge_unsigned(transform.dest_name(),
-                                try!(untransformed_data.get_float_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_unsigned(dname, src),
+                                |field| untransformed_data.get_float_field(field),
+                                t
+                            )
                         },
                         TransformType::FloatToSigned(ref t) => {
-                            try!(transformed_data.merge_signed(transform.dest_name(),
-                                try!(untransformed_data.get_float_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_signed(dname, src),
+                                |field| untransformed_data.get_float_field(field),
+                                t
+                            )
                         },
                         TransformType::FloatToStr(ref t) => {
-                            try!(transformed_data.merge_string(transform.dest_name(),
-                                try!(untransformed_data.get_float_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_string(dname, src),
+                                |field| untransformed_data.get_float_field(field),
+                                t
+                            )
                         },
                         TransformType::FloatToBool(ref t) => {
-                            try!(transformed_data.merge_boolean(transform.dest_name(),
-                                try!(untransformed_data.get_float_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_boolean(dname, src),
+                                |field| untransformed_data.get_float_field(field),
+                                t
+                            )
                         },
                         TransformType::FloatToFloat(ref t) => {
-                            try!(transformed_data.merge_float(transform.dest_name(),
-                                try!(untransformed_data.get_float_field(&field_name).ok_or(
-                                format!("untransformed field name '{}' not found", field_name)))
-                                .iter().map(|v| t(v)).collect()
-                            ));
+                            transform!(
+                                field_name, transform.dest_name(),
+                                |dname, src| transformed_data.merge_float(dname, src),
+                                |field| untransformed_data.get_float_field(field),
+                                t
+                            )
                         },
                     }
                 }
