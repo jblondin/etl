@@ -208,6 +208,10 @@ impl DataStore {
         self.float.get(field_name)
     }
 
+    pub fn get_fieldinfo(&self, field_name: &String) -> Option<&FieldInfo> {
+        self.field_map.get(field_name).and_then(|&index| self.fields.get(index))
+    }
+
     pub fn is_homogeneous(&self) -> bool {
         is_hm_homogeneous(&self.unsigned)
             .and_then(|x| is_hm_homogeneous_with(&self.signed, x))

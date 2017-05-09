@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::io::{Read};
 use std::path::{Path};
 
@@ -74,6 +75,53 @@ impl DataFrame {
         }
 
         Ok((fieldnames, Matrix::from_vec(data_vec, self.data.nrows(), self.data.fields.len())))
+    }
+
+    pub fn sub<T>(&self, cols: Vec<T>) -> Result<DataFrame, DataFrameError> where T: Borrow<str> {
+        let mut subds = DataStore::empty();
+        for field_name in cols {
+            let field_name = field_name.borrow().to_string();
+            if let Some(fi) = self.data.get_fieldinfo(&field_name) {
+                let found = match fi.ty {
+                    FieldType::Unsigned => {
+                        match self.data.get_unsigned_field(&field_name) {
+                            Some(v) => { subds.merge_unsigned(&field_name, v.clone())?; Some(()) },
+                            None    => None
+                        }
+                    },
+                    FieldType::Signed => {
+                        match self.data.get_signed_field(&field_name) {
+                            Some(v) => { subds.merge_signed(&field_name, v.clone())?; Some(()) },
+                            None    => None
+                        }
+                    },
+                    FieldType::Str => {
+                        match self.data.get_string_field(&field_name) {
+                            Some(v) => { subds.merge_string(&field_name, v.clone())?; Some(()) },
+                            None    => None
+                        }
+                    },
+                    FieldType::Bool => {
+                        match self.data.get_boolean_field(&field_name) {
+                            Some(v) => { subds.merge_boolean(&field_name, v.clone())?; Some(()) },
+                            None    => None
+                        }
+                    },
+                    FieldType::Float => {
+                        match self.data.get_float_field(&field_name) {
+                            Some(v) => { subds.merge_float(&field_name, v.clone())?; Some(()) },
+                            None    => None
+                        }
+                    },
+                };
+                if found.is_none() {
+                    return Err(DataFrameError::new("Datastore inconsistent"));
+                }
+            } else {
+                return Err(DataFrameError::new(&format!("Unknown field name: {}", field_name)[..]));
+            }
+        }
+        Ok(DataFrame { data: subds })
     }
 }
 
@@ -393,5 +441,19 @@ mod tests {
         assert_eq!(fieldnames.len(), 2);
         assert_eq!(mat.nrows(), 100);
         assert_eq!(mat.ncols(), 2);
+    }
+
+    #[test]
+    fn sub_test() {
+        let data_dir_pathbuf = test_data_path!();
+        let data_file_path = data_dir_pathbuf.join("people.csv");
+        let config_file_path = data_dir_pathbuf.join("people.yaml");
+
+        let (_, df) = DataFrame::load(&config_file_path, &data_file_path).unwrap();
+
+        let subdf = df.sub(vec!["age", "income", "credit_rating"]).expect("sub() failed");
+        assert_eq!(subdf.fieldnames().len(), 3);
+        assert_eq!(subdf.nrows(), 99);
+        println!("{:#?}", subdf);
     }
 }
