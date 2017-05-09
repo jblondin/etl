@@ -1,0 +1,31 @@
+fields:
+  - name: id
+    type: string
+  - name: age
+    type: unsigned
+  - name: gender_code
+    type: string
+  - name: income
+    type: unsigned
+  - name: yrs_at_job
+    type: unsigned
+  - name: household_income
+    type: unsigned
+  - name: effective_tax
+    type: float
+  - name: years_edu
+    type: unsigned
+  - name: credit_rating
+    type: float
+transforms:
+  - source_field_name: gender_code
+    target_field_name: gender_identifier
+    keep_source: true
+    target_type: signed
+    transform_map:
+      default_value: -1
+      mappings:
+        - source_value: M
+          target_value: 0
+        - source_value: F
+          target_value: 1
