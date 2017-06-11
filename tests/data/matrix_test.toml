@@ -1,0 +1,5 @@
+[[source_files]]
+name = "matrix_test.csv"
+delimiter = "\t"
+fields = [ { source_name = "x", field_type = "Float" },
+           { source_name = "y", field_type = "Float" } ]

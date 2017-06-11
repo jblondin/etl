@@ -1,0 +1,67 @@
+[[source_files]]
+name = "transform_test1.csv"
+delimiter = ","
+fields = [ { source_name = "a", field_type = "Str", add_to_frame = false },
+           { source_name = "b", field_type = "Str", add_to_frame = false } ]
+
+[[source_files]]
+name = "transform_test2.csv"
+delimiter = "\t"
+fields = [ { source_name = "c", field_type = "Signed" },
+           { source_name = "d", field_type = "Signed" },
+           { source_name = "e", field_type = "Str" },
+           { source_name = "f", field_type = "Float", add_to_frame = false } ]
+
+[[transforms]]
+method = { action = "Concatenate",  separator = "!!" }
+source_fields = [ "a", "b" ]
+target_name = "cat_ab"
+
+[[transforms]]
+source_fields = [ "e" ]
+target_name = "map_e"
+
+[transforms.method]
+action = "Map"
+default_value = "-1"
+map = { "M" = "0", "F" = "1" }
+
+[[transforms]]
+source_fields = [ "map_e" ]
+target_name = "map_convert_e"
+method = { action = "Convert", target_type = "Signed" }
+
+[[transforms]]
+source_fields = [ "f" ]
+target_name = "scaled_f_default"
+method = { action = "Scale"}
+
+[[transforms]]
+source_fields = [ "f" ]
+target_name = "scaled_f_custom"
+method = { action = "Scale", min_value = -1.0, max_value = 1.0 }
+
+[[transforms]]
+source_fields = [ "f" ]
+target_name = "norm_f_uncorr"
+method = { action = "Normalize" }
+
+[[transforms]]
+source_fields = [ "f" ]
+target_name = "norm_f_sample"
+method = { action = "Normalize", sample_stdev_correction = 1.0 }
+
+[[transforms]]
+source_fields = [ "e" ]
+target_name = "vec_onehot_e"
+method = { action = "VectorizeOneHot" }
+
+[[transforms]]
+source_fields = [ "e" ]
+target_name = "vec_onehot_e_n11"
+method = { action = "VectorizeOneHot", binary_scaling = "NegOneOne" }
+
+[[transforms]]
+source_fields = [ "e" ]
+target_name = "vec_hash_e"
+method = { action = "VectorizeHash", hash_size = 4 }

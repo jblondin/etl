@@ -1,8 +1,17 @@
 #![feature(box_syntax)]
 
+extern crate num;
+extern crate serde;
+extern crate serde_json;
+#[macro_use] extern crate serde_derive;
 extern crate csv;
-extern crate yaml_rust;
+extern crate toml;
+#[macro_use] extern crate error_chain;
+
+
 extern crate matrix;
 
+mod errors;
+
 pub mod dataframe;
-pub use dataframe::{Config, DataFrame, DataFrameError};
+pub use dataframe::{DataConfig, DataFrame};

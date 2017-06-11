@@ -6,10 +6,10 @@ use csv;
 
 use matrix::Matrix;
 
-use dataframe::datastore::{DataStore, FieldInfo};
-use dataframe::config::{self, Config, FieldType};
-use dataframe::error::DataFrameError;
-use dataframe::transform::{TransformType};
+use errors::*;
+
+use dataframe::config::{self, DataConfig, SourceFile, Field, FieldType};
+use dataframe::datastore::DataStore;
 
 #[derive(Debug)]
 pub struct DataFrame {
@@ -20,28 +20,64 @@ impl DataFrame {
         self.data.nrows()
     }
 
-    //TODO: remove 'Config' from return (I don't think I need it)
-    pub fn load(config_file_path: &Path, data_file_path: &Path)
-            -> Result<(Config, DataFrame), DataFrameError> {
-        let config = try!(config::load_configfile(config_file_path));
+    pub fn load(config_file_path: &Path) -> Result<(DataConfig, DataFrame)> {
+        let config = config::DataConfig::from_config(config_file_path)?;
+        let mut untransformed_data = DataStore::empty();
 
-        let mut reader = try!(csv::Reader::from_file(data_file_path))
-                .delimiter(b'\t');
-        let used_fields = try!(parse_headers(&mut reader, &config));
+        for source_file in &config.source_files {
+            let data_file_path = Path::new(&source_file.name[..]);
 
-        let untransformed_data = try!(extract_data(&mut reader, &used_fields));
-        let transformed_data = try!(transform_data(&untransformed_data, &config));
-
-        return Ok((config, DataFrame { data: transformed_data }))
+            let mut reader = csv::ReaderBuilder::new()
+                .delimiter(source_file.delimiter()?)
+                .from_path(data_file_path).chain_err(|| "error reading CSV file")?;
+            let used_fields = parse_headers(&mut reader, &source_file)?;
+            if used_fields.is_empty() {
+                return Err(Error::from_kind(ErrorKind::DataFrameError(
+                    format!("error parsing headers for file {}", source_file.name))));
+            }
+            let unt = extract_data(&mut reader, &used_fields)?;
+            untransformed_data.merge(unt)?;
+        }
+        let (transformed_data, generated_field_names) =
+            transform_data(&untransformed_data, &config)?;
+        let mut df = DataFrame { data: DataStore::empty() };
+        df.merge_datastore(finalize_data(untransformed_data, transformed_data, &config,
+            &generated_field_names)?)?;
+        Ok((config, df))
     }
 
-    pub fn fieldnames(&self) -> Vec<String> {
-        self.data.fields.iter().map(|fi| fi.name.clone()).collect()
+    fn merge_datastore(&mut self, other_ds: DataStore) -> Result<()> {
+        self.data.merge(other_ds)
+    }
+    pub fn merge(&mut self, other: DataFrame) -> Result<()> {
+        self.merge_datastore(other.data)
     }
 
-    pub fn as_matrix(&self) -> Result<(Vec<String>, Matrix), DataFrameError> {
+    pub fn fieldnames(&self) -> Vec<&String> {
+        self.data.fieldnames()
+    }
+
+    pub fn get_unsigned_field<T: ?Sized + Borrow<str>>(&self, field_name: &T) -> Option<&Vec<u64>> {
+        self.data.get_unsigned_field(&field_name.borrow().to_string())
+    }
+    pub fn get_signed_field<T: ?Sized + Borrow<str>>(&self, field_name: &T) -> Option<&Vec<i64>> {
+        self.data.get_signed_field(&field_name.borrow().to_string())
+    }
+    pub fn get_string_field<T: ?Sized + Borrow<str>>(&self, field_name: &T)
+            -> Option<&Vec<String>> {
+        self.data.get_string_field(&field_name.borrow().to_string())
+    }
+    pub fn get_boolean_field<T: ?Sized + Borrow<str>>(&self, field_name: &T) -> Option<&Vec<bool>> {
+        self.data.get_boolean_field(&field_name.borrow().to_string())
+    }
+    pub fn get_float_field<T: ?Sized + Borrow<str>>(&self, field_name: &T) -> Option<&Vec<f64>> {
+        self.data.get_float_field(&field_name.borrow().to_string())
+    }
+
+    pub fn as_matrix(&self) -> Result<(Vec<String>, Matrix)> {
         if !self.data.is_homogeneous() {
-            return Err(DataFrameError::new("DataFrame columns are not same length"))
+            return Err(Error::from_kind(ErrorKind::DataFrameError(
+                "DataFrame columns are not same length".to_string())));
         }
         let mut fieldnames: Vec<String> = Vec::new();
         let mut data_vec: Vec<f64> = Vec::new();
@@ -77,7 +113,7 @@ impl DataFrame {
         Ok((fieldnames, Matrix::from_vec(data_vec, self.data.nrows(), self.data.fields.len())))
     }
 
-    pub fn sub<T>(&self, cols: Vec<T>) -> Result<DataFrame, DataFrameError> where T: Borrow<str> {
+    pub fn sub<T>(&self, cols: Vec<T>) -> Result<DataFrame> where T: Borrow<str> {
         let mut subds = DataStore::empty();
         for field_name in cols {
             let field_name = field_name.borrow().to_string();
@@ -115,345 +151,119 @@ impl DataFrame {
                     },
                 };
                 if found.is_none() {
-                    return Err(DataFrameError::new("Datastore inconsistent"));
+                    return Err(Error::from_kind(ErrorKind::DataFrameError(
+                        "Datastore inconsistent".to_string())));
                 }
             } else {
-                return Err(DataFrameError::new(&format!("Unknown field name: {}", field_name)[..]));
+                return Err(Error::from_kind(ErrorKind::DataFrameError(
+                    format!("Unknown field name: {}", field_name))));
             }
         }
         Ok(DataFrame { data: subds })
     }
 }
 
-fn parse_headers<R>(reader: &mut csv::Reader<R>, config: &Config)
-        -> Result<Vec<FieldInfo>, DataFrameError> where R: Read {
-    let headers = try!(reader.headers());
+fn parse_headers<'a, R>(reader: &mut csv::Reader<R>, source_file: &'a SourceFile)
+        -> Result<Vec<(&'a Field, usize)>> where R: Read {
+    let headers = reader.headers().chain_err(|| "unable to parse CSV headers")?;
     let mut used_fields = vec!();
     for (i, field_name) in headers.iter().enumerate() {
-        if config.using_field(field_name) {
-            used_fields.push(FieldInfo::new(i, field_name.clone(),
-                config.get_source_type(field_name)));
+        if let Some(field) = source_file.get_field(&field_name.to_string()) {
+            used_fields.push((field, i));
         }
     }
     Ok(used_fields)
 }
 
-fn extract_data<R>(reader: &mut csv::Reader<R>, used_fields: &Vec<FieldInfo>)
-        -> Result<DataStore, DataFrameError> where R: Read {
+fn extract_data<R>(reader: &mut csv::Reader<R>, used_fields: &Vec<(&Field, usize)>)
+        -> Result<DataStore> where R: Read {
     let mut data = DataStore::empty();
     for row in reader.records() {
-        let row = try!(row);
-        for ref finfo in used_fields {
-            try!(data.insert(finfo.name.clone(), finfo.ty,
-                try!(row.get(finfo.index).ok_or("field index out of bounds")).clone()));
+        let row = row.chain_err(|| "error reading row")?;
+        for &(ref field, index) in used_fields {
+            data.insert(
+                field.target_name().clone(),
+                field.field_type,
+                row.get(index)
+                .ok_or(ErrorKind::DataFrameError("field index out of bounds".to_string()))?
+                .to_string()
+            ).chain_err(|| "data insertion error")?;
         }
         if !data.is_homogeneous() {
-            return Err(DataFrameError::new("error loading data: inconsistent field lengths"))
+            return Err(Error::from_kind(ErrorKind::DataFrameError(
+                "error loading data: inconsistent field lengths".to_string())));
         }
     }
     Ok(data)
 }
 
-macro_rules! transform {
-    ($field_name:expr, $tf_merge_f:expr, $src:expr, $tf:expr) => {
-        try!($tf_merge_f(try!($src.ok_or(
-            format!("untransformed field name '{}' not found", $field_name)))
-            .iter().map(|v| $tf(v)).collect()
-        ));
+fn transform_data<'a>(untransformed_data: &DataStore, config: &DataConfig)
+        -> Result<(DataStore, Vec<Vec<String>>)> {
 
+    if let Some(ref transforms) = config.transforms {
+        let mut tf_data = DataStore::empty();
+        let mut generated_field_names: Vec<Vec<String>> = vec![Vec::new(); transforms.len()];
+
+        let mut work: Vec<usize> = Vec::new();
+        for i in 0..transforms.len() { work.push(i); }
+
+        while !work.is_empty() {
+            let mut more_work: Vec<usize> = Vec::new();
+            let mut anything_done_this_loop = false;
+            while let Some(index) = work.pop() {
+                let transform = &transforms[index];
+                if transform.source_exists(untransformed_data) {
+                    let transformed_data = transform.transform(untransformed_data)?;
+                    generated_field_names[index] = transformed_data.fieldnames()
+                        .iter().map(|&s| s.clone()).collect();
+                    tf_data.merge_fields(transformed_data.fieldnames(), &transform.target_type(),
+                        &transformed_data)?;
+                    anything_done_this_loop = true;
+                } else if transform.source_exists(&tf_data) {
+                    let transformed_data = transform.transform(&tf_data)?;
+                    generated_field_names[index] = transformed_data.fieldnames()
+                        .iter().map(|&s| s.clone()).collect();
+                    tf_data.merge_fields(transformed_data.fieldnames(), &transform.target_type(),
+                        &transformed_data)?;
+                    anything_done_this_loop = true;
+                } else {
+                    more_work.push(index);
+                }
+            }
+
+            if !anything_done_this_loop {
+                return Err(Error::from_kind(ErrorKind::DataConfigError(
+                    format!("no source exists for following transforms: {}",
+                        more_work.iter().fold(String::new(),
+                            |acc, &i| acc + &transforms[i].target_name[..] + " ")))));
+            }
+            work.append(&mut more_work);
+        }
+        Ok((tf_data, generated_field_names))
+    } else {
+        Ok((DataStore::empty(), Vec::new()))
     }
 }
 
-fn transform_data(untransformed_data: &DataStore, config: &Config)
-        -> Result<DataStore, DataFrameError> {
-    let mut tf_data = DataStore::empty();
-
-    for field_name in config.field_names() {
-        let source_type = config.get_source_type(&field_name);
-        match config.get_transforms_for_field(&field_name) {
-            Some(transforms) => {
-                let mut keep_source = false;
-                for transform in transforms {
-                    keep_source |= transform.keep_source();
-                    match transform.trtype {
-                        TransformType::UnsignedToUnsigned(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_unsigned(transform.dest_name(), tr_src),
-                                untransformed_data.get_unsigned_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::UnsignedToSigned(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_signed(transform.dest_name(), tr_src),
-                                untransformed_data.get_unsigned_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::UnsignedToStr(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_string(transform.dest_name(), tr_src),
-                                untransformed_data.get_unsigned_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::UnsignedToBool(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_boolean(transform.dest_name(), tr_src),
-                                untransformed_data.get_unsigned_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::UnsignedToFloat(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_float(transform.dest_name(), tr_src),
-                                untransformed_data.get_unsigned_field(&field_name),
-                                t
-                            )
-                        },
-
-                        TransformType::SignedToUnsigned(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_unsigned(transform.dest_name(), tr_src),
-                                untransformed_data.get_signed_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::SignedToSigned(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_signed(transform.dest_name(), tr_src),
-                                untransformed_data.get_signed_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::SignedToStr(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_string(transform.dest_name(), tr_src),
-                                untransformed_data.get_signed_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::SignedToBool(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_boolean(transform.dest_name(), tr_src),
-                                untransformed_data.get_signed_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::SignedToFloat(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_float(transform.dest_name(), tr_src),
-                                untransformed_data.get_signed_field(&field_name),
-                                t
-                            )
-                        },
-
-                        TransformType::StrToUnsigned(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_unsigned(transform.dest_name(), tr_src),
-                                untransformed_data.get_string_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::StrToSigned(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_signed(transform.dest_name(), tr_src),
-                                untransformed_data.get_string_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::StrToStr(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_string(transform.dest_name(), tr_src),
-                                untransformed_data.get_string_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::StrToBool(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_boolean(transform.dest_name(), tr_src),
-                                untransformed_data.get_string_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::StrToFloat(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_float(transform.dest_name(), tr_src),
-                                untransformed_data.get_string_field(&field_name),
-                                t
-                            )
-                        },
-
-                        TransformType::BoolToUnsigned(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_unsigned(transform.dest_name(), tr_src),
-                                untransformed_data.get_boolean_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::BoolToSigned(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_signed(transform.dest_name(), tr_src),
-                                untransformed_data.get_boolean_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::BoolToStr(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_string(transform.dest_name(), tr_src),
-                                untransformed_data.get_boolean_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::BoolToBool(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_boolean(transform.dest_name(), tr_src),
-                                untransformed_data.get_boolean_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::BoolToFloat(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_float(transform.dest_name(), tr_src),
-                                untransformed_data.get_boolean_field(&field_name),
-                                t
-                            )
-                        },
-
-                        TransformType::FloatToUnsigned(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_unsigned(transform.dest_name(), tr_src),
-                                untransformed_data.get_float_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::FloatToSigned(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_signed(transform.dest_name(), tr_src),
-                                untransformed_data.get_float_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::FloatToStr(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_string(transform.dest_name(), tr_src),
-                                untransformed_data.get_float_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::FloatToBool(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_boolean(transform.dest_name(), tr_src),
-                                untransformed_data.get_float_field(&field_name),
-                                t
-                            )
-                        },
-                        TransformType::FloatToFloat(ref t) => {
-                            transform!(
-                                field_name,
-                                |tr_src| tf_data.merge_float(transform.dest_name(), tr_src),
-                                untransformed_data.get_float_field(&field_name),
-                                t
-                            )
-                        },
-                    }
-                }
-                if keep_source {
-                    try!(tf_data.merge_field(&field_name, &source_type,
-                        untransformed_data));
-                }
-            },
-            None => {
-                try!(tf_data.merge_field(&field_name, &source_type, untransformed_data));
+fn finalize_data(untransformed_data: DataStore, transformed_data: DataStore, config: &DataConfig,
+        generated_field_names: &Vec<Vec<String>>) -> Result<DataStore> {
+    let mut finalized_data = DataStore::empty();
+    for source_file in &config.source_files {
+        for field in &source_file.fields {
+            if field.add_to_frame() {
+                finalized_data.merge_field(field.target_name(), &field.field_type,
+                    &untransformed_data)?;
             }
         }
     }
-    Ok(tf_data)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    macro_rules! test_data_path {
-        () => {{
-            PathBuf::from(file!()) // current file
-                .parent().unwrap() // "dataframe" directory
-                .parent().unwrap() // "src" directory
-                .parent().unwrap() // etl crate root directory;
-                .join("test_data")
-        }}
+    if let Some(ref transforms) = config.transforms {
+        for (i, transform) in transforms.iter().enumerate() {
+            if transform.add_to_frame() {
+                finalized_data.merge_fields(
+                    generated_field_names[i].iter().map(|&ref s| s).collect(),
+                    &transform.target_type(), &transformed_data)?;
+            }
+        }
     }
-
-    #[test]
-    fn basic_test() {
-        let data_dir_pathbuf = test_data_path!();
-        let data_file_path = data_dir_pathbuf.join("people.csv");
-        let config_file_path = data_dir_pathbuf.join("people.yaml");
-
-        let (config, df) = DataFrame::load(&config_file_path, &data_file_path).unwrap();
-        println!("{:#?}", config);
-        println!("{:#?}", df.data.fields);
-        assert_eq!(df.nrows(), 99);
-        let fns = df.fieldnames();
-        assert_eq!(fns.len(), 10);
-        println!("{:#?}", fns);
-    }
-
-    #[test]
-    fn matrix_test() {
-        let data_dir_pathbuf = test_data_path!();
-        let data_file_path = data_dir_pathbuf.join("matrix_test.csv");
-        let config_file_path = data_dir_pathbuf.join("matrix_test.yaml");
-
-        let (config, df) = DataFrame::load(&config_file_path, &data_file_path).unwrap();
-        println!("{:#?}", config);
-        assert_eq!(df.nrows(), 100);
-
-        let (fieldnames, mat) = df.as_matrix().unwrap();
-        println!("{:#?}", fieldnames);
-        println!("{:#?}", mat);
-        assert_eq!(fieldnames.len(), 2);
-        assert_eq!(mat.nrows(), 100);
-        assert_eq!(mat.ncols(), 2);
-    }
-
-    #[test]
-    fn sub_test() {
-        let data_dir_pathbuf = test_data_path!();
-        let data_file_path = data_dir_pathbuf.join("people.csv");
-        let config_file_path = data_dir_pathbuf.join("people.yaml");
-
-        let (_, df) = DataFrame::load(&config_file_path, &data_file_path).unwrap();
-
-        let subdf = df.sub(vec!["age", "income", "credit_rating"]).expect("sub() failed");
-        assert_eq!(subdf.fieldnames().len(), 3);
-        assert_eq!(subdf.nrows(), 99);
-        println!("{:#?}", subdf);
-    }
+    Ok(finalized_data)
 }

@@ -4,6 +4,12 @@ version = "0.1.0"
 authors = ["Jamie Blondin <jblondin@gmail.com>"]
 
 [dependencies]
-csv = "0.14"
-yaml-rust = "*"
+csv = "1.0.0-beta.3"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+toml = "0.4"
+error-chain = "*"
+num = "0.1"
+unittest = { git = "https://github.com/jblondin/unittest" }
 matrix = { git = "https://github.com/jblondin/matrix" }

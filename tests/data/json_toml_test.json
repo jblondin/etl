@@ -1,0 +1,32 @@
+{
+    "source_files": [
+        {
+            "name": "foo1.csv",
+            "delimiter": ",",
+            "fields": [
+                { "source_name": "a", "field_type": "Unsigned", "add_to_frame": true }
+            ]
+        },
+        {
+            "name": "foo2.tsv",
+            "delimiter": "\t",
+            "fields": [
+                { "source_name": "b", "field_type": "Signed", "add_to_frame": true },
+                { "source_name": "c", "field_type": "Float", "add_to_frame": true }
+            ]
+        }
+    ],
+    "transforms": [
+        {
+            "method": { "action": "Concatenate", "separator": "!!" },
+            "source_fields": [ "a", "b" ],
+            "target_name": "cat_ab"
+        },
+        {
+            "method": { "action": "Map", "default_value": "-1", "map": { "M": "0", "F": "1" } },
+            "source_fields": [ "c" ],
+            "target_name": "map_c"
+        }
+
+    ]
+}

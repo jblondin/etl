@@ -1,13 +1,13 @@
-mod error;
-pub use self::error::DataFrameError;
 
-mod config;
-pub use self::config::Config;
+mod convert;
+pub mod config;
+pub use self::config::{DataConfig, FieldType};
 
 mod datastore;
-
-mod transform;
+pub use self::datastore::DataStore;
 
 mod dataframe;
 pub use self::dataframe::DataFrame;
 
+mod transform;
+pub use self::transform::TransformFields;

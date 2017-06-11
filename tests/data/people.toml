@@ -1,0 +1,28 @@
+[[source_files]]
+name = "people.csv"
+delimiter = "\t"
+fields = [ { source_name = "id", field_type = "Str" },
+           { source_name = "age", field_type = "Unsigned" },
+           { source_name = "gender_code", field_type = "Str" },
+           { source_name = "income", field_type = "Unsigned" },
+           { source_name = "yrs_at_job", field_type = "Unsigned" },
+           { source_name = "household_income", field_type = "Unsigned" },
+           { source_name = "effective_tax", field_type = "Float" },
+           { source_name = "years_edu", field_type = "Unsigned" },
+           { source_name = "credit_rating", field_type = "Float" }, ]
+
+
+[[transforms]]
+source_fields = [ "gender_code" ]
+target_name = "gender_identifier_str"
+add_to_frame = false
+
+[transforms.method]
+action = "Map"
+default_value = "-1"
+map = { "M" = "0", "F" = "1" }
+
+[[transforms]]
+source_fields = [ "gender_identifier_str" ]
+target_name = "gender_identifier"
+method = { action = "Convert", target_type = "Signed" }

@@ -2,9 +2,9 @@ use std::cmp::max;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use dataframe::{DataFrameError};
-use dataframe::config::FieldType;
+use errors::*;
 
+use dataframe::config::FieldType;
 
 #[derive(Debug, Clone)]
 pub struct FieldInfo {
@@ -82,9 +82,11 @@ impl DataStore {
     }
 
     fn add_field(&mut self, field_name: String, field_type: FieldType) {
-        let index = self.fields.len();
-        self.fields.push(FieldInfo::new(index, field_name.clone(), field_type));
-        self.field_map.insert(field_name, index);
+        if !self.field_map.contains_key(&field_name) {
+            let index = self.fields.len();
+            self.fields.push(FieldInfo::new(index, field_name.clone(), field_type));
+            self.field_map.insert(field_name, index);
+        }
     }
     pub fn insert_unsigned(&mut self, field_name: String, value: u64) {
         self.add_field(field_name.clone(), FieldType::Unsigned);
@@ -108,90 +110,103 @@ impl DataStore {
     }
 
     pub fn insert(&mut self, field_name: String, field_type: FieldType, value_str: String)
-            -> Result<(), DataFrameError> {
+            -> Result<()> {
         match field_type {
-            FieldType::Unsigned => self.insert_unsigned(field_name, try!(value_str.parse())),
-            FieldType::Signed   => self.insert_signed(field_name, try!(value_str.parse())),
+            FieldType::Unsigned => self.insert_unsigned(field_name,
+                value_str.parse().chain_err(|| "unsigned integer parse error")?),
+            FieldType::Signed   => self.insert_signed(field_name,
+                value_str.parse().chain_err(|| "signed integer parse error")?),
             FieldType::Str      => self.insert_string(field_name, value_str),
-            FieldType::Bool     => self.insert_boolean(field_name, try!(value_str.parse())),
-            FieldType::Float    => self.insert_float(field_name, try!(value_str.parse())),
+            FieldType::Bool     => self.insert_boolean(field_name,
+                value_str.parse().chain_err(|| "boolean parse error")?),
+            FieldType::Float    => self.insert_float(field_name,
+                value_str.parse().chain_err(|| "floating point parse error")?),
         }
         Ok(())
     }
 
 
-    pub fn merge_unsigned(&mut self, field_name: &String, v: Vec<u64>)
-            -> Result<(), DataFrameError> {
+    pub fn merge_unsigned(&mut self, field_name: &String, v: Vec<u64>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Unsigned);
         match self.unsigned.insert(field_name.clone(), v) {
-            Some(_) => { Err(DataFrameError::new(
-                &format!("merging field {} clobbered existing field", field_name)[..])) },
+            Some(_) => { Err(Error::from_kind(ErrorKind::DataFrameError(
+                format!("merging field {} clobbered existing field", field_name)))) },
             None    => { Ok(()) }
         }
     }
-    pub fn merge_signed(&mut self, field_name: &String, v: Vec<i64>)
-            -> Result<(), DataFrameError> {
+    pub fn merge_signed(&mut self, field_name: &String, v: Vec<i64>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Signed);
         match self.signed.insert(field_name.clone(), v) {
-            Some(_) => { Err(DataFrameError::new(
-                &format!("merging field {} clobbered existing field", field_name)[..])) },
+            Some(_) => { Err(Error::from_kind(ErrorKind::DataFrameError(
+                format!("merging field {} clobbered existing field", field_name)))) },
             None    => { Ok(()) }
         }
     }
-    pub fn merge_string(&mut self, field_name: &String, v: Vec<String>)
-            -> Result<(), DataFrameError> {
+    pub fn merge_string(&mut self, field_name: &String, v: Vec<String>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Str);
         match self.string.insert(field_name.clone(), v) {
-            Some(_) => { Err(DataFrameError::new(
-                &format!("merging field {} clobbered existing field", field_name)[..])) },
+            Some(_) => { Err(Error::from_kind(ErrorKind::DataFrameError(
+                format!("merging field {} clobbered existing field", field_name)))) },
             None    => { Ok(()) }
         }
     }
-    pub fn merge_boolean(&mut self, field_name: &String, v: Vec<bool>)
-            -> Result<(), DataFrameError> {
+    pub fn merge_boolean(&mut self, field_name: &String, v: Vec<bool>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Bool);
         match self.boolean.insert(field_name.clone(), v) {
-            Some(_) => { Err(DataFrameError::new(
-                &format!("merging field {} clobbered existing field", field_name)[..])) },
+            Some(_) => { Err(Error::from_kind(ErrorKind::DataFrameError(
+                format!("merging field {} clobbered existing field", field_name)))) },
             None    => { Ok(()) }
         }
     }
-    pub fn merge_float(&mut self, field_name: &String, v: Vec<f64>)
-            -> Result<(), DataFrameError> {
+    pub fn merge_float(&mut self, field_name: &String, v: Vec<f64>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Float);
         match self.float.insert(field_name.clone(), v) {
-            Some(_) => { Err(DataFrameError::new(
-                &format!("merging field {} clobbered existing field", field_name)[..])) },
+            Some(_) => { Err(Error::from_kind(ErrorKind::DataFrameError(
+                format!("merging field {} clobbered existing field", field_name)))) },
             None    => { Ok(()) }
         }
+    }
+
+    pub fn merge_fields(&mut self, field_names: Vec<&String>, field_type: &FieldType,
+            src: &DataStore) -> Result<()> {
+        for field_name in field_names {
+            match *field_type {
+                FieldType::Unsigned => try!(self.merge_unsigned(field_name,
+                    try!(src.unsigned.get(field_name)
+                    .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
+                        .clone())),
+                FieldType::Signed   => try!(self.merge_signed(field_name,
+                    try!(src.signed.get(field_name)
+                    .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
+                        .clone())),
+                FieldType::Str      => try!(self.merge_string(field_name,
+                    try!(src.string.get(field_name)
+                    .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
+                        .clone())),
+                FieldType::Bool     => try!(self.merge_boolean(field_name,
+                    try!(src.boolean.get(field_name)
+                    .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
+                        .clone())),
+                FieldType::Float    => try!(self.merge_float(field_name,
+                    try!(src.float.get(field_name)
+                    .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
+                        .clone())),
+            }
+        }
+        Ok(())
     }
 
     pub fn merge_field(&mut self, field_name: &String, field_type: &FieldType, src: &DataStore)
-            -> Result<(), DataFrameError> {
-        Ok(match *field_type {
-            FieldType::Unsigned => try!(self.merge_unsigned(field_name,
-                try!(src.unsigned.get(field_name)
-                .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
-                    .clone())),
-            FieldType::Signed   => try!(self.merge_signed(field_name,
-                try!(src.signed.get(field_name)
-                .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
-                    .clone())),
-            FieldType::Str      => try!(self.merge_string(field_name,
-                try!(src.string.get(field_name)
-                .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
-                    .clone())),
-            FieldType::Bool     => try!(self.merge_boolean(field_name,
-                try!(src.boolean.get(field_name)
-                .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
-                    .clone())),
-            FieldType::Float    => try!(self.merge_float(field_name,
-                try!(src.float.get(field_name)
-                .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
-                    .clone())),
-        })
+            -> Result<()> {
+        self.merge_fields(vec![field_name], field_type, src)
     }
 
+    pub fn merge(&mut self, other: DataStore) -> Result<()> {
+        for field in &other.fields {
+            self.merge_field(&field.name, &field.ty, &other)?;
+        }
+        Ok(())
+    }
     pub fn get_unsigned_field(&self, field_name: &String) -> Option<&Vec<u64>> {
         self.unsigned.get(field_name)
     }
@@ -210,6 +225,13 @@ impl DataStore {
 
     pub fn get_fieldinfo(&self, field_name: &String) -> Option<&FieldInfo> {
         self.field_map.get(field_name).and_then(|&index| self.fields.get(index))
+    }
+
+    pub fn fields(&self) -> Vec<&FieldInfo> {
+        self.fields.iter().map(|&ref s| s).collect()
+    }
+    pub fn fieldnames(&self) -> Vec<&String> {
+        self.fields.iter().map(|ref s| &s.name).collect()
     }
 
     pub fn is_homogeneous(&self) -> bool {
