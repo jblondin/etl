@@ -5,6 +5,7 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 extern crate csv;
+extern crate encoding;
 extern crate toml;
 #[macro_use] extern crate error_chain;
 

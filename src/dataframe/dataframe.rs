@@ -3,6 +3,8 @@ use std::io::{Read};
 use std::path::{Path};
 
 use csv;
+use encoding::{Encoding, DecoderTrap};
+use encoding::all::{ISO_8859_1, WINDOWS_1252};
 
 use matrix::Matrix;
 
@@ -175,18 +177,32 @@ fn parse_headers<'a, R>(reader: &mut csv::Reader<R>, source_file: &'a SourceFile
     Ok(used_fields)
 }
 
+fn decode(bytes: &[u8], linenum: usize, fieldnum: usize) -> Result<String> {
+    ::std::str::from_utf8(bytes).map(|s| s.to_string()).chain_err(|| "UTF-8 Error:")
+        .or_else(|_| -> Result<String> {
+            // fallback to ISO-8859-1 encoding
+            ISO_8859_1.decode(bytes, DecoderTrap::Strict)
+                .map_err(|e| format!("ISO_8859_1 Error: {}", e.into_owned()).into())
+        })
+        .or_else(|_| -> Result<String> {
+            // fallback to WINDOWS-1252 encoding
+            WINDOWS_1252.decode(bytes, DecoderTrap::Strict)
+                .map_err(|e| format!("WINDOWS_1252 Error: {}", e.into_owned()).into())
+        }).chain_err(|| format!("Unable to parse line {}, field {}", linenum, fieldnum))
+}
+
 fn extract_data<R>(reader: &mut csv::Reader<R>, used_fields: &Vec<(&Field, usize)>)
         -> Result<DataStore> where R: Read {
     let mut data = DataStore::empty();
-    for row in reader.records() {
-        let row = row.chain_err(|| "error reading row")?;
+    for (rownum, row) in reader.byte_records().enumerate() {
+        let row = row.chain_err(|| format!("error reading file line {}", rownum + 2))?;
         for &(ref field, index) in used_fields {
+            let stringified = decode(row.get(index).ok_or(ErrorKind::DataFrameError(
+                    "field index out of bounds".to_string()))?, rownum + 1, index)?;
             data.insert(
                 field.target_name().clone(),
                 field.field_type,
-                row.get(index)
-                .ok_or(ErrorKind::DataFrameError("field index out of bounds".to_string()))?
-                .to_string()
+                stringified
             ).chain_err(|| "data insertion error")?;
         }
         if !data.is_homogeneous() {
