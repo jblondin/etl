@@ -98,6 +98,7 @@ pub struct SourceFile {
     pub name: String,
     pub delimiter: Option<String>,
     pub fields: Vec<Field>,
+    pub filters: Option<Vec<Filter>>,
 }
 
 impl SourceFile {
@@ -113,8 +114,8 @@ impl SourceFile {
             None => { b',' }
         })
     }
-    pub fn get_field(&self, s: &String) -> Option<&Field> {
-        self.fields.iter().find(|&&ref field| field.target_name() == s)
+    pub fn get_source_field(&self, s: &String) -> Option<&Field> {
+        self.fields.iter().find(|&&ref field| field.source_name == *s)
     }
 }
 
@@ -140,9 +141,107 @@ impl Field {
 pub enum FieldType {
     Unsigned,
     Signed,
-    Str,
-    Bool,
+    Text,
+    Boolean,
     Float
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Filter {
+    pub source_field: String,
+    pub filter: FilterMethod,
+}
+impl Filter {
+    pub fn apply(&self, value_str: &String) -> Result<bool> {
+        self.filter.apply(value_str)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "method")]
+pub enum FilterMethod {
+    Match(MatchConfig),
+    MatchNot(MatchConfig),
+    Inequality(InequalityConfig),
+}
+impl FilterMethod {
+    pub fn apply(&self, value_str: &String) -> Result<bool> {
+        match *self {
+            FilterMethod::Match(ref config) => { config.does_match(value_str) }
+            FilterMethod::MatchNot(ref config) => { config.does_match(value_str).map(|b| !b) }
+            FilterMethod::Inequality(ref config) => { config.does_satisfy(value_str) }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MatchConfig {
+    text: Option<String>,
+    signed: Option<i64>,
+    unsigned: Option<u64>,
+    boolean: Option<bool>,
+    float: Option<f64>,
+}
+impl MatchConfig {
+    pub fn does_match(&self, value_str: &String) -> Result<bool> {
+        Ok(if let Some(ref s) = self.text {
+            s == value_str
+        } else if let Some(i) = self.signed {
+            i == value_str.parse::<i64>().chain_err(|| "signed integer parse error")?
+        } else if let Some(u) = self.unsigned {
+            u == value_str.parse::<u64>().chain_err(|| "unsigned integer parse error")?
+        } else if let Some(b) = self.boolean {
+            b == value_str.parse::<bool>().chain_err(|| "boolean parse error")?
+        } else if let Some(f) = self.float {
+            f == value_str.parse::<f64>().chain_err(|| "float parse error")?
+        } else {
+            return Err(ErrorKind::DataConfigError("missing match value".to_string()).into());
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InequalityConfig {
+    inequality: InequalityMethod,
+
+    signed: Option<i64>,
+    unsigned: Option<u64>,
+    float: Option<f64>,
+
+}
+impl InequalityConfig {
+    pub fn does_satisfy(&self, value_str: &String) -> Result<bool> {
+        Ok(if let Some(i) = self.signed {
+            self.inequality.does_satisfy(
+                value_str.parse::<i64>().chain_err(|| "signed integer parse error")?, i)
+        } else if let Some(u) = self.unsigned {
+            self.inequality.does_satisfy(
+                value_str.parse::<u64>().chain_err(|| "unsigned integer parse error")?, u)
+        } else if let Some(f) = self.float {
+            self.inequality.does_satisfy(
+                value_str.parse::<f64>().chain_err(|| "float parse error")?, f)
+        } else {
+            return Err(ErrorKind::DataConfigError("missing inequality value".to_string()).into());
+        })
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub enum InequalityMethod {
+    Gt,
+    Gte,
+    Lt,
+    Lte
+}
+impl InequalityMethod {
+    pub fn does_satisfy<T: PartialOrd> (&self, value: T, target: T) -> bool {
+        match *self {
+            InequalityMethod::Gt => value > target,
+            InequalityMethod::Gte => value >= target,
+            InequalityMethod::Lt => value < target,
+            InequalityMethod::Lte => value <= target,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -199,8 +298,8 @@ impl TransformMethod {
     pub fn target_type(&self) -> FieldType {
         match *self {
             TransformMethod::Convert(ref config)    => { config.target_type() }
-            TransformMethod::Map(_)                 => { FieldType::Str }
-            TransformMethod::Concatenate(_)         => { FieldType::Str }
+            TransformMethod::Map(_)                 => { FieldType::Text }
+            TransformMethod::Concatenate(_)         => { FieldType::Text }
             TransformMethod::VectorizeOneHot(_)     => { FieldType::Float }
             TransformMethod::VectorizeHash(_)       => { FieldType::Float }
             TransformMethod::Normalize(_)           => { FieldType::Float }

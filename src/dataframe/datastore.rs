@@ -30,7 +30,7 @@ pub struct DataStore {
 
     pub unsigned: HashMap<String, Vec<u64>>,
     pub signed: HashMap<String, Vec<i64>>,
-    pub string: HashMap<String, Vec<String>>,
+    pub text: HashMap<String, Vec<String>>,
     pub boolean: HashMap<String, Vec<bool>>,
     pub float: HashMap<String, Vec<f64>>,
 }
@@ -75,7 +75,7 @@ impl DataStore {
 
             unsigned: HashMap::new(),
             signed: HashMap::new(),
-            string: HashMap::new(),
+            text: HashMap::new(),
             boolean: HashMap::new(),
             float: HashMap::new(),
         }
@@ -96,12 +96,12 @@ impl DataStore {
         self.add_field(field_name.clone(), FieldType::Signed);
         insert_value(&mut self.signed, field_name, value);
     }
-    pub fn insert_string(&mut self, field_name: String, value: String) {
-        self.add_field(field_name.clone(), FieldType::Str);
-        insert_value(&mut self.string, field_name, value);
+    pub fn insert_text(&mut self, field_name: String, value: String) {
+        self.add_field(field_name.clone(), FieldType::Text);
+        insert_value(&mut self.text, field_name, value);
     }
     pub fn insert_boolean(&mut self, field_name: String, value: bool) {
-        self.add_field(field_name.clone(), FieldType::Bool);
+        self.add_field(field_name.clone(), FieldType::Boolean);
         insert_value(&mut self.boolean, field_name, value);
     }
     pub fn insert_float(&mut self, field_name: String, value: f64) {
@@ -116,15 +116,14 @@ impl DataStore {
                 value_str.parse().chain_err(|| "unsigned integer parse error")?),
             FieldType::Signed   => self.insert_signed(field_name,
                 value_str.parse().chain_err(|| "signed integer parse error")?),
-            FieldType::Str      => self.insert_string(field_name, value_str),
-            FieldType::Bool     => self.insert_boolean(field_name,
+            FieldType::Text     => self.insert_text(field_name, value_str),
+            FieldType::Boolean  => self.insert_boolean(field_name,
                 value_str.parse().chain_err(|| "boolean parse error")?),
             FieldType::Float    => self.insert_float(field_name,
                 value_str.parse().chain_err(|| "floating point parse error")?),
         }
         Ok(())
     }
-
 
     pub fn merge_unsigned(&mut self, field_name: &String, v: Vec<u64>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Unsigned);
@@ -142,16 +141,16 @@ impl DataStore {
             None    => { Ok(()) }
         }
     }
-    pub fn merge_string(&mut self, field_name: &String, v: Vec<String>) -> Result<()> {
-        self.add_field(field_name.clone(), FieldType::Str);
-        match self.string.insert(field_name.clone(), v) {
+    pub fn merge_text(&mut self, field_name: &String, v: Vec<String>) -> Result<()> {
+        self.add_field(field_name.clone(), FieldType::Text);
+        match self.text.insert(field_name.clone(), v) {
             Some(_) => { Err(Error::from_kind(ErrorKind::DataFrameError(
                 format!("merging field {} clobbered existing field", field_name)))) },
             None    => { Ok(()) }
         }
     }
     pub fn merge_boolean(&mut self, field_name: &String, v: Vec<bool>) -> Result<()> {
-        self.add_field(field_name.clone(), FieldType::Bool);
+        self.add_field(field_name.clone(), FieldType::Boolean);
         match self.boolean.insert(field_name.clone(), v) {
             Some(_) => { Err(Error::from_kind(ErrorKind::DataFrameError(
                 format!("merging field {} clobbered existing field", field_name)))) },
@@ -179,11 +178,11 @@ impl DataStore {
                     try!(src.signed.get(field_name)
                     .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
                         .clone())),
-                FieldType::Str      => try!(self.merge_string(field_name,
-                    try!(src.string.get(field_name)
+                FieldType::Text     => try!(self.merge_text(field_name,
+                    try!(src.text.get(field_name)
                     .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
                         .clone())),
-                FieldType::Bool     => try!(self.merge_boolean(field_name,
+                FieldType::Boolean  => try!(self.merge_boolean(field_name,
                     try!(src.boolean.get(field_name)
                     .ok_or(format!("unable to merge field_name {}: does not exist", field_name)))
                         .clone())),
@@ -213,8 +212,8 @@ impl DataStore {
     pub fn get_signed_field(&self, field_name: &String) -> Option<&Vec<i64>> {
         self.signed.get(field_name)
     }
-    pub fn get_string_field(&self, field_name: &String) -> Option<&Vec<String>> {
-        self.string.get(field_name)
+    pub fn get_text_field(&self, field_name: &String) -> Option<&Vec<String>> {
+        self.text.get(field_name)
     }
     pub fn get_boolean_field(&self, field_name: &String) -> Option<&Vec<bool>> {
         self.boolean.get(field_name)
@@ -237,13 +236,13 @@ impl DataStore {
     pub fn is_homogeneous(&self) -> bool {
         is_hm_homogeneous(&self.unsigned)
             .and_then(|x| is_hm_homogeneous_with(&self.signed, x))
-            .and_then(|x| is_hm_homogeneous_with(&self.string, x))
+            .and_then(|x| is_hm_homogeneous_with(&self.text, x))
             .and_then(|x| is_hm_homogeneous_with(&self.boolean, x))
             .and_then(|x| is_hm_homogeneous_with(&self.float, x))
             .is_some()
     }
     pub fn nrows(&self) -> usize {
-        [max_len(&self.unsigned), max_len(&self.signed), max_len(&self.string),
+        [max_len(&self.unsigned), max_len(&self.signed), max_len(&self.text),
             max_len(&self.boolean), max_len(&self.float)].iter().fold(0, |acc, l| max(acc, *l))
     }
 }

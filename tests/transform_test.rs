@@ -44,16 +44,16 @@ fn test_transform() {
     assert!(field_d.is_some());
     assert_eq!(field_d.unwrap(), &[9, 8, 7, 6, 5, 4, 3, 2, 1]);
 
-    let field_e = df.get_string_field("e");
+    let field_e = df.get_text_field("e");
     assert!(field_e.is_some());
     assert_eq!(field_e.unwrap(), &["M", "e2", "F", "M", "M", "F", "F", "F", "F"]);
 
-    let field_cat_ab = df.get_string_field("cat_ab");
+    let field_cat_ab = df.get_text_field("cat_ab");
     assert!(field_cat_ab.is_some());
     assert_eq!(field_cat_ab.unwrap(), &["a1!!b1", "a2!!b2", "a3!!b3", "a4!!b4", "a5!!b5", "a6!!b6",
         "a7!!b7", "a8!!b8", "a9!!b9"]);
 
-    let field_map_e = df.get_string_field("map_e");
+    let field_map_e = df.get_text_field("map_e");
     assert!(field_map_e.is_some());
     assert_eq!(field_map_e.unwrap(), &["0", "-1", "1", "0", "0", "1", "1", "1", "1"]);
 

@@ -10,32 +10,32 @@ use dataframe::config::FieldType;
 pub enum ConvertType {
     UnsignedToUnsigned,
     UnsignedToSigned,
-    UnsignedToStr,
-    UnsignedToBool,
+    UnsignedToText,
+    UnsignedToBoolean,
     UnsignedToFloat,
 
     SignedToUnsigned,
     SignedToSigned,
-    SignedToStr,
-    SignedToBool,
+    SignedToText,
+    SignedToBoolean,
     SignedToFloat,
 
-    StrToUnsigned,
-    StrToSigned,
-    StrToStr,
-    StrToBool,
-    StrToFloat,
+    TextToUnsigned,
+    TextToSigned,
+    TextToText,
+    TextToBoolean,
+    TextToFloat,
 
-    BoolToUnsigned,
-    BoolToSigned,
-    BoolToStr,
-    BoolToBool,
-    BoolToFloat,
+    BooleanToUnsigned,
+    BooleanToSigned,
+    BooleanToText,
+    BooleanToBoolean,
+    BooleanToFloat,
 
     FloatToUnsigned,
     FloatToSigned,
-    FloatToStr,
-    FloatToBool,
+    FloatToText,
+    FloatToBoolean,
     FloatToFloat,
 }
 
@@ -49,9 +49,9 @@ pub fn convert_field(
             orig_ds.get_unsigned_field(source_field).unwrap().vec_convert())?; }
         ConvertType::UnsignedToSigned => { conv_data.merge_signed(target_field,
             orig_ds.get_unsigned_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::UnsignedToStr => { conv_data.merge_string(target_field,
+        ConvertType::UnsignedToText => { conv_data.merge_text(target_field,
             orig_ds.get_unsigned_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::UnsignedToBool => { conv_data.merge_boolean(target_field,
+        ConvertType::UnsignedToBoolean => { conv_data.merge_boolean(target_field,
             orig_ds.get_unsigned_field(source_field).unwrap().vec_convert())?; }
         ConvertType::UnsignedToFloat => { conv_data.merge_float(target_field,
             orig_ds.get_unsigned_field(source_field).unwrap().vec_convert())?; }
@@ -60,42 +60,42 @@ pub fn convert_field(
             orig_ds.get_signed_field(source_field).unwrap().vec_convert())?; }
         ConvertType::SignedToSigned => { conv_data.merge_signed(target_field,
             orig_ds.get_signed_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::SignedToStr => { conv_data.merge_string(target_field,
+        ConvertType::SignedToText => { conv_data.merge_text(target_field,
             orig_ds.get_signed_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::SignedToBool => { conv_data.merge_boolean(target_field,
+        ConvertType::SignedToBoolean => { conv_data.merge_boolean(target_field,
             orig_ds.get_signed_field(source_field).unwrap().vec_convert())?; }
         ConvertType::SignedToFloat => { conv_data.merge_float(target_field,
             orig_ds.get_signed_field(source_field).unwrap().vec_convert())?; }
 
-        ConvertType::StrToUnsigned => { conv_data.merge_unsigned(target_field,
-            orig_ds.get_string_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::StrToSigned => { conv_data.merge_signed(target_field,
-            orig_ds.get_string_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::StrToStr => { conv_data.merge_string(target_field,
-            orig_ds.get_string_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::StrToBool => { conv_data.merge_boolean(target_field,
-            orig_ds.get_string_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::StrToFloat => { conv_data.merge_float(target_field,
-            orig_ds.get_string_field(source_field).unwrap().vec_convert())?; }
+        ConvertType::TextToUnsigned => { conv_data.merge_unsigned(target_field,
+            orig_ds.get_text_field(source_field).unwrap().vec_convert())?; }
+        ConvertType::TextToSigned => { conv_data.merge_signed(target_field,
+            orig_ds.get_text_field(source_field).unwrap().vec_convert())?; }
+        ConvertType::TextToText => { conv_data.merge_text(target_field,
+            orig_ds.get_text_field(source_field).unwrap().vec_convert())?; }
+        ConvertType::TextToBoolean => { conv_data.merge_boolean(target_field,
+            orig_ds.get_text_field(source_field).unwrap().vec_convert())?; }
+        ConvertType::TextToFloat => { conv_data.merge_float(target_field,
+            orig_ds.get_text_field(source_field).unwrap().vec_convert())?; }
 
-        ConvertType::BoolToUnsigned => { conv_data.merge_unsigned(target_field,
+        ConvertType::BooleanToUnsigned => { conv_data.merge_unsigned(target_field,
             orig_ds.get_boolean_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::BoolToSigned => { conv_data.merge_signed(target_field,
+        ConvertType::BooleanToSigned => { conv_data.merge_signed(target_field,
             orig_ds.get_boolean_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::BoolToStr => { conv_data.merge_string(target_field,
+        ConvertType::BooleanToText => { conv_data.merge_text(target_field,
             orig_ds.get_boolean_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::BoolToBool => { conv_data.merge_boolean(target_field,
+        ConvertType::BooleanToBoolean => { conv_data.merge_boolean(target_field,
             orig_ds.get_boolean_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::BoolToFloat => { conv_data.merge_float(target_field,
+        ConvertType::BooleanToFloat => { conv_data.merge_float(target_field,
             orig_ds.get_boolean_field(source_field).unwrap().vec_convert())?; }
 
         ConvertType::FloatToUnsigned => { conv_data.merge_unsigned(target_field,
             orig_ds.get_float_field(source_field).unwrap().vec_convert())?; }
         ConvertType::FloatToSigned => { conv_data.merge_signed(target_field,
             orig_ds.get_float_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::FloatToStr => { conv_data.merge_string(target_field,
+        ConvertType::FloatToText => { conv_data.merge_text(target_field,
             orig_ds.get_float_field(source_field).unwrap().vec_convert())?; }
-        ConvertType::FloatToBool => { conv_data.merge_boolean(target_field,
+        ConvertType::FloatToBoolean => { conv_data.merge_boolean(target_field,
             orig_ds.get_float_field(source_field).unwrap().vec_convert())?; }
         ConvertType::FloatToFloat => { conv_data.merge_float(target_field,
             orig_ds.get_float_field(source_field).unwrap().vec_convert())?; }
@@ -222,8 +222,8 @@ fn gen_convert_type(source_type: FieldType, target_type: FieldType) -> ConvertTy
             match target_type {
                 FieldType::Unsigned => ConvertType::UnsignedToUnsigned,
                 FieldType::Signed   => ConvertType::UnsignedToSigned,
-                FieldType::Str      => ConvertType::UnsignedToStr,
-                FieldType:: Bool    => ConvertType::UnsignedToBool,
+                FieldType::Text     => ConvertType::UnsignedToText,
+                FieldType::Boolean  => ConvertType::UnsignedToBoolean,
                 FieldType::Float    => ConvertType::UnsignedToFloat,
             }
         },
@@ -231,35 +231,35 @@ fn gen_convert_type(source_type: FieldType, target_type: FieldType) -> ConvertTy
             match target_type {
                 FieldType::Unsigned => ConvertType::SignedToUnsigned,
                 FieldType::Signed   => ConvertType::SignedToSigned,
-                FieldType::Str      => ConvertType::SignedToStr,
-                FieldType:: Bool    => ConvertType::SignedToBool,
+                FieldType::Text     => ConvertType::SignedToText,
+                FieldType::Boolean  => ConvertType::SignedToBoolean,
                 FieldType::Float    => ConvertType::SignedToFloat,
             }
         },
-        FieldType::Str => {
+        FieldType::Text => {
             match target_type {
-                FieldType::Unsigned => ConvertType::StrToUnsigned,
-                FieldType::Signed   => ConvertType::StrToSigned,
-                FieldType::Str      => ConvertType::StrToStr,
-                FieldType:: Bool    => ConvertType::StrToBool,
-                FieldType::Float    => ConvertType::StrToFloat,
+                FieldType::Unsigned => ConvertType::TextToUnsigned,
+                FieldType::Signed   => ConvertType::TextToSigned,
+                FieldType::Text     => ConvertType::TextToText,
+                FieldType::Boolean  => ConvertType::TextToBoolean,
+                FieldType::Float    => ConvertType::TextToFloat,
             }
         },
-        FieldType::Bool => {
+        FieldType::Boolean => {
             match target_type {
-                FieldType::Unsigned => ConvertType::BoolToUnsigned,
-                FieldType::Signed   => ConvertType::BoolToSigned,
-                FieldType::Str      => ConvertType::BoolToStr,
-                FieldType:: Bool    => ConvertType::BoolToBool,
-                FieldType::Float    => ConvertType::BoolToFloat,
+                FieldType::Unsigned => ConvertType::BooleanToUnsigned,
+                FieldType::Signed   => ConvertType::BooleanToSigned,
+                FieldType::Text     => ConvertType::BooleanToText,
+                FieldType::Boolean  => ConvertType::BooleanToBoolean,
+                FieldType::Float    => ConvertType::BooleanToFloat,
             }
         },
         FieldType::Float => {
             match target_type {
                 FieldType::Unsigned => ConvertType::FloatToUnsigned,
                 FieldType::Signed   => ConvertType::FloatToSigned,
-                FieldType::Str      => ConvertType::FloatToStr,
-                FieldType:: Bool    => ConvertType::FloatToBool,
+                FieldType::Text     => ConvertType::FloatToText,
+                FieldType::Boolean  => ConvertType::FloatToBoolean,
                 FieldType::Float    => ConvertType::FloatToFloat,
             }
         },
@@ -272,32 +272,32 @@ impl fmt::Debug for ConvertType {
             match *self {
                 ConvertType::UnsignedToUnsigned => "UnsignedToUnsigned",
                 ConvertType::UnsignedToSigned   => "UnsignedToSigned",
-                ConvertType::UnsignedToStr      => "UnsignedToStr",
-                ConvertType::UnsignedToBool     => "UnsignedToBool",
+                ConvertType::UnsignedToText     => "UnsignedToText",
+                ConvertType::UnsignedToBoolean  => "UnsignedToBooleanean",
                 ConvertType::UnsignedToFloat    => "UnsignedToFloat",
 
                 ConvertType::SignedToUnsigned   => "SignedToUnsigned",
                 ConvertType::SignedToSigned     => "SignedToSigned",
-                ConvertType::SignedToStr        => "SignedToStr",
-                ConvertType::SignedToBool       => "SignedToBool",
+                ConvertType::SignedToText       => "SignedToText",
+                ConvertType::SignedToBoolean    => "SignedToBoolean",
                 ConvertType::SignedToFloat      => "SignedToFloat",
 
-                ConvertType::StrToUnsigned      => "StrToUnsigned",
-                ConvertType::StrToSigned        => "StrToSigned",
-                ConvertType::StrToStr           => "StrToStr",
-                ConvertType::StrToBool          => "StrToBool",
-                ConvertType::StrToFloat         => "StrToFloat",
+                ConvertType::TextToUnsigned     => "TextToUnsigned",
+                ConvertType::TextToSigned       => "TextToSigned",
+                ConvertType::TextToText         => "TextToText",
+                ConvertType::TextToBoolean      => "TextToBoolean",
+                ConvertType::TextToFloat        => "TextToFloat",
 
-                ConvertType::BoolToUnsigned     => "BoolToUnsigned",
-                ConvertType::BoolToSigned       => "BoolToSigned",
-                ConvertType::BoolToStr          => "BoolToStr",
-                ConvertType::BoolToBool         => "BoolToBool",
-                ConvertType::BoolToFloat        => "BoolToFloat",
+                ConvertType::BooleanToUnsigned  => "BooleanToUnsigned",
+                ConvertType::BooleanToSigned    => "BooleanToSigned",
+                ConvertType::BooleanToText      => "BooleanToText",
+                ConvertType::BooleanToBoolean   => "BooleanToBoolean",
+                ConvertType::BooleanToFloat     => "BooleanToFloat",
 
                 ConvertType::FloatToUnsigned    => "FloatToUnsigned",
                 ConvertType::FloatToSigned      => "FloatToSigned",
-                ConvertType::FloatToStr         => "FloatToStr",
-                ConvertType::FloatToBool        => "FloatToBool",
+                ConvertType::FloatToText        => "FloatToText",
+                ConvertType::FloatToBoolean     => "FloatToBoolean",
                 ConvertType::FloatToFloat       => "FloatToFloat",
             }
         })

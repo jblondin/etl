@@ -42,13 +42,13 @@ impl TransformFields for MapConfig {
         let source_field = source_fields.first().unwrap();
         let source_finfo = orig_ds.get_fieldinfo(source_field)
             .ok_or(Error::from_kind(ErrorKind::DataConfigError("bad transform call".to_string())))?;
-        if source_finfo.ty != FieldType::Str {
+        if source_finfo.ty != FieldType::Text {
             return Err(Error::from_kind(ErrorKind::DataConfigError(
                 "transform: map transform only maps between strings".to_string())));
         }
 
         let mut tf_data = DataStore::empty();
-        tf_data.merge_string(target_name, orig_ds.get_string_field(source_field).unwrap().iter()
+        tf_data.merge_text(target_name, orig_ds.get_text_field(source_field).unwrap().iter()
             .map(|&ref s| self.map.get(s).unwrap_or(&self.default_value).clone()).collect())?;
         Ok(tf_data)
     }
@@ -68,12 +68,12 @@ impl TransformFields for ConcatenateConfig {
             // verify that all sources are strings
             let source_finfo = orig_ds.get_fieldinfo(source_field).ok_or(
                 Error::from_kind(ErrorKind::DataConfigError("bad transform call".to_string())))?;
-            if source_finfo.ty != FieldType::Str {
+            if source_finfo.ty != FieldType::Text {
                 return Err(Error::from_kind(ErrorKind::DataConfigError(
                     "transform: concatenate can only concatenate strings".to_string())));
             }
 
-            let field_data_vec = orig_ds.get_string_field(source_field).unwrap();
+            let field_data_vec = orig_ds.get_text_field(source_field).unwrap();
             nrows = field_data_vec.len();
             field_data.push(field_data_vec);
         }
@@ -87,7 +87,7 @@ impl TransformFields for ConcatenateConfig {
         }
 
         let mut tf_data = DataStore::empty();
-        tf_data.merge_string(target_name, tf_data_vec)?;
+        tf_data.merge_text(target_name, tf_data_vec)?;
         Ok(tf_data)
     }
 }
@@ -103,13 +103,13 @@ impl TransformFields for VecOneHotConfig {
         let source_field = source_fields.first().unwrap();
         let source_finfo = orig_ds.get_fieldinfo(source_field)
             .ok_or(Error::from_kind(ErrorKind::DataConfigError("bad transform call".to_string())))?;
-        if source_finfo.ty != FieldType::Str {
+        if source_finfo.ty != FieldType::Text {
             return Err(Error::from_kind(ErrorKind::DataConfigError(
                 "transform: vectorize one-hot transform requires string source values".to_string()
             )));
         }
 
-        let data_vec = orig_ds.get_string_field(source_field).unwrap();
+        let data_vec = orig_ds.get_text_field(source_field).unwrap();
         let mut assignments: HashMap<String, usize> = HashMap::new();
         let mut unique_values: Vec<String> = Vec::new();
         for s in data_vec {
@@ -144,12 +144,12 @@ impl TransformFields for VecHashConfig {
         let source_field = source_fields.first().unwrap();
         let source_finfo = orig_ds.get_fieldinfo(source_field)
             .ok_or(Error::from_kind(ErrorKind::DataConfigError("bad transform call".to_string())))?;
-        if source_finfo.ty != FieldType::Str {
+        if source_finfo.ty != FieldType::Text {
             return Err(Error::from_kind(ErrorKind::DataConfigError(
                 "transform: vectorize hash transform requires string source values".to_string())));
         }
 
-        let data_vec = orig_ds.get_string_field(source_field).unwrap();
+        let data_vec = orig_ds.get_text_field(source_field).unwrap();
         let hash_size = self.hash_size();
         let mut hash_vecs: Vec<Vec<f64>> = vec![vec![0.0; data_vec.len()]; hash_size as usize];
         let midpoint = 1u64.shl(63);

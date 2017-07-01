@@ -1,9 +1,9 @@
 [[source_files]]
 name = "people.csv"
 delimiter = "\t"
-fields = [ { source_name = "id", field_type = "Str" },
+fields = [ { source_name = "id", field_type = "Text" },
            { source_name = "age", field_type = "Unsigned" },
-           { source_name = "gender_code", field_type = "Str" },
+           { source_name = "gender_code", field_type = "Text" },
            { source_name = "income", field_type = "Unsigned" },
            { source_name = "yrs_at_job", field_type = "Unsigned" },
            { source_name = "household_income", field_type = "Unsigned" },

@@ -1,15 +1,15 @@
 [[source_files]]
 name = "transform_test1.csv"
 delimiter = ","
-fields = [ { source_name = "a", field_type = "Str", add_to_frame = false },
-           { source_name = "b", field_type = "Str", add_to_frame = false } ]
+fields = [ { source_name = "a", field_type = "Text", add_to_frame = false },
+           { source_name = "b", field_type = "Text", add_to_frame = false } ]
 
 [[source_files]]
 name = "transform_test2.csv"
 delimiter = "\t"
 fields = [ { source_name = "c", field_type = "Signed" },
            { source_name = "d", field_type = "Signed" },
-           { source_name = "e", field_type = "Str" },
+           { source_name = "e", field_type = "Text" },
            { source_name = "f", field_type = "Float", add_to_frame = false } ]
 
 [[transforms]]

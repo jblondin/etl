@@ -1,0 +1,14 @@
+[[source_files]]
+name = "transform_test2.csv"
+delimiter = "\t"
+fields = [ { source_name = "c", field_type = "Signed" },
+           { source_name = "e", field_type = "Text", add_to_frame = false },
+           { source_name = "f", field_type = "Float" } ]
+
+[[source_files.filters]]
+source_field = "e"
+filter = { method = "Match", text = "F" }
+
+[[source_files.filters]]
+source_field = "f"
+filter = { method = "Inequality", inequality = "Lte", float = 10.0 }
