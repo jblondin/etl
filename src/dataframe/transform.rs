@@ -11,7 +11,10 @@ use dataframe::config::{ConvertConfig, MapConfig, ConcatenateConfig, VecOneHotCo
     NormalizeConfig, ScaleConfig};
 use dataframe::convert::convert_field;
 
+/// Trait for field transformation.
 pub trait TransformFields {
+    /// Transform the fields specified by one or more source fields of the given data store, with
+    /// target field name
     fn transform_fields(&self, orig_ds: &DataStore, source_fields: &Vec<String>,
             target_name: &String) -> Result<DataStore>;
 }

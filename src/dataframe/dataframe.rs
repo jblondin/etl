@@ -14,15 +14,17 @@ use errors::*;
 use dataframe::config::{self, DataConfig, SourceFile, Field, FieldType, Filter};
 use dataframe::datastore::DataStore;
 
+/// Primary dataframe structure
 #[derive(Debug)]
 pub struct DataFrame {
     data: DataStore,
 }
 impl DataFrame {
+    /// Number of rows in dataframe
     pub fn nrows(&self) -> usize {
         self.data.nrows()
     }
-
+    /// Create a new DataConfig and DataFrame from the configuration file specified
     pub fn load(config_file_path: &Path) -> Result<(DataConfig, DataFrame)> {
         let config = config::DataConfig::from_config(config_file_path)?;
         let mut untransformed_data = DataStore::empty();
@@ -52,30 +54,40 @@ impl DataFrame {
     fn merge_datastore(&mut self, other_ds: DataStore) -> Result<()> {
         self.data.merge(other_ds)
     }
+    /// Merge dataframe with another dataframe
     pub fn merge(&mut self, other: DataFrame) -> Result<()> {
         self.merge_datastore(other.data)
     }
 
+    /// List of the field names for this dataframe
     pub fn fieldnames(&self) -> Vec<&String> {
         self.data.fieldnames()
     }
 
+    /// Get an unsigned integer field from the dataframe (if exists for given field name)
     pub fn get_unsigned_field<T: ?Sized + Borrow<str>>(&self, field_name: &T) -> Option<&Vec<u64>> {
         self.data.get_unsigned_field(&field_name.borrow().to_string())
     }
+    /// Get an signed integer field from the dataframe (if exists for given field name)
     pub fn get_signed_field<T: ?Sized + Borrow<str>>(&self, field_name: &T) -> Option<&Vec<i64>> {
         self.data.get_signed_field(&field_name.borrow().to_string())
     }
+    /// Get an string field from the dataframe (if exists for given field name)
     pub fn get_text_field<T: ?Sized + Borrow<str>>(&self, field_name: &T) -> Option<&Vec<String>> {
         self.data.get_text_field(&field_name.borrow().to_string())
     }
+    /// Get an boolean field from the dataframe (if exists for given field name)
     pub fn get_boolean_field<T: ?Sized + Borrow<str>>(&self, field_name: &T) -> Option<&Vec<bool>> {
         self.data.get_boolean_field(&field_name.borrow().to_string())
     }
+    /// Get an floating point field from the dataframe (if exists for given field name)
     pub fn get_float_field<T: ?Sized + Borrow<str>>(&self, field_name: &T) -> Option<&Vec<f64>> {
         self.data.get_float_field(&field_name.borrow().to_string())
     }
 
+    /// Generate a matrix from the dataframe as well as the field names for the columns of that
+    /// matrix. String fields are ignored. Integer and boolean fields are transformed into floating
+    /// point numbers.
     pub fn as_matrix(&self) -> Result<(Vec<String>, Matrix)> {
         if !self.data.is_homogeneous() {
             return Err(Error::from_kind(ErrorKind::DataFrameError(
@@ -115,6 +127,7 @@ impl DataFrame {
         Ok((fieldnames, Matrix::from_vec(data_vec, self.data.nrows(), self.data.fields.len())))
     }
 
+    /// Generate a sub-dataframe consisting of the columns specified
     pub fn sub<T>(&self, cols: Vec<T>) -> Result<DataFrame> where T: Borrow<str> {
         let mut subds = DataStore::empty();
         for field_name in cols {

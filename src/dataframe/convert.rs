@@ -1,3 +1,5 @@
+//! Field conversion methods
+
 use std::fmt;
 
 use errors::*;

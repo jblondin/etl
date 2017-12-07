@@ -6,10 +6,14 @@ use errors::*;
 
 use dataframe::config::FieldType;
 
+/// Field information for a field within a data store
 #[derive(Debug, Clone)]
 pub struct FieldInfo {
+    /// Index of the field within the data store
     pub index: usize,
+    /// Field name
     pub name: String,
+    /// Field type
     pub ty: FieldType,
 }
 impl FieldInfo {
@@ -22,16 +26,24 @@ impl FieldInfo {
     }
 }
 
+/// Data storage underlying a dataframe. Data is retrievable both by index (of the fields vector)
+/// and by field name.
 #[derive(Debug)]
 pub struct DataStore {
-    // store field list in both ordered (by index) and searchable (by name) form
+    /// List of fields within the data store
     pub fields: Vec<FieldInfo>,
+    /// Map of field names to index of the fields vector
     pub field_map: HashMap<String, usize>,
 
+    /// Storage for unsigned integers
     pub unsigned: HashMap<String, Vec<u64>>,
+    /// Storage for signed integers
     pub signed: HashMap<String, Vec<i64>>,
+    /// Storage for strings
     pub text: HashMap<String, Vec<String>>,
+    /// Storage for booleans
     pub boolean: HashMap<String, Vec<bool>>,
+    /// Storage for floating-point numbers
     pub float: HashMap<String, Vec<f64>>,
 }
 fn max_len<K, T>(h: &HashMap<K, Vec<T>>) -> usize where K: Eq + Hash {
@@ -68,6 +80,7 @@ fn insert_value<T>(h: &mut HashMap<String, Vec<T>>, k: String, v: T) {
     }
 }
 impl DataStore {
+    /// Generate and return an empty data store
     pub fn empty() -> DataStore {
         DataStore {
             fields: Vec::new(),
@@ -88,27 +101,33 @@ impl DataStore {
             self.field_map.insert(field_name, index);
         }
     }
+    /// Insert an unsigned integer with provided field name
     pub fn insert_unsigned(&mut self, field_name: String, value: u64) {
         self.add_field(field_name.clone(), FieldType::Unsigned);
         insert_value(&mut self.unsigned, field_name, value);
     }
+    /// Insert a signed integer with provided field name
     pub fn insert_signed(&mut self, field_name: String, value: i64) {
         self.add_field(field_name.clone(), FieldType::Signed);
         insert_value(&mut self.signed, field_name, value);
     }
+    /// Insert a string with provided field name
     pub fn insert_text(&mut self, field_name: String, value: String) {
         self.add_field(field_name.clone(), FieldType::Text);
         insert_value(&mut self.text, field_name, value);
     }
+    /// Insert a boolean with provided field name
     pub fn insert_boolean(&mut self, field_name: String, value: bool) {
         self.add_field(field_name.clone(), FieldType::Boolean);
         insert_value(&mut self.boolean, field_name, value);
     }
+    /// Insert a floating-point number with provided field name
     pub fn insert_float(&mut self, field_name: String, value: f64) {
         self.add_field(field_name.clone(), FieldType::Float);
         insert_value(&mut self.float, field_name, value);
     }
 
+    /// Insert a value (in unparsed string form) of given field type with specified field name
     pub fn insert(&mut self, field_name: String, field_type: FieldType, value_str: String)
             -> Result<()> {
         match field_type {
@@ -125,6 +144,7 @@ impl DataStore {
         Ok(())
     }
 
+    /// Merge unsigned integer vector into data store under specified field name
     pub fn merge_unsigned(&mut self, field_name: &String, v: Vec<u64>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Unsigned);
         match self.unsigned.insert(field_name.clone(), v) {
@@ -133,6 +153,7 @@ impl DataStore {
             None    => { Ok(()) }
         }
     }
+    /// Merge signed integer vector into data store under specified field name
     pub fn merge_signed(&mut self, field_name: &String, v: Vec<i64>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Signed);
         match self.signed.insert(field_name.clone(), v) {
@@ -141,6 +162,7 @@ impl DataStore {
             None    => { Ok(()) }
         }
     }
+    /// Merge string vector into data store under specified field name
     pub fn merge_text(&mut self, field_name: &String, v: Vec<String>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Text);
         match self.text.insert(field_name.clone(), v) {
@@ -149,6 +171,7 @@ impl DataStore {
             None    => { Ok(()) }
         }
     }
+    /// Merge boolean vector into data store under specified field name
     pub fn merge_boolean(&mut self, field_name: &String, v: Vec<bool>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Boolean);
         match self.boolean.insert(field_name.clone(), v) {
@@ -157,6 +180,8 @@ impl DataStore {
             None    => { Ok(()) }
         }
     }
+
+    /// Merge floating-point vector into data store under specified field name
     pub fn merge_float(&mut self, field_name: &String, v: Vec<f64>) -> Result<()> {
         self.add_field(field_name.clone(), FieldType::Float);
         match self.float.insert(field_name.clone(), v) {
@@ -166,6 +191,8 @@ impl DataStore {
         }
     }
 
+    /// Merge the fields of a given field type with specified field names from source datastore
+    /// into this data store
     pub fn merge_fields(&mut self, field_names: Vec<&String>, field_type: &FieldType,
             src: &DataStore) -> Result<()> {
         for field_name in field_names {
@@ -195,44 +222,57 @@ impl DataStore {
         Ok(())
     }
 
+    /// Merge single field of the given field type and specified field name from source data store
+    /// into this data store
     pub fn merge_field(&mut self, field_name: &String, field_type: &FieldType, src: &DataStore)
             -> Result<()> {
         self.merge_fields(vec![field_name], field_type, src)
     }
 
+    /// Merge an entire source data store into this data store
     pub fn merge(&mut self, other: DataStore) -> Result<()> {
         for field in &other.fields {
             self.merge_field(&field.name, &field.ty, &other)?;
         }
         Ok(())
     }
+    /// Retrieve an unsigned integer field
     pub fn get_unsigned_field(&self, field_name: &String) -> Option<&Vec<u64>> {
         self.unsigned.get(field_name)
     }
+    /// Retrieve a signed integer field
     pub fn get_signed_field(&self, field_name: &String) -> Option<&Vec<i64>> {
         self.signed.get(field_name)
     }
+    /// Retrieve a string field
     pub fn get_text_field(&self, field_name: &String) -> Option<&Vec<String>> {
         self.text.get(field_name)
     }
+    /// Retrieve a boolean field
     pub fn get_boolean_field(&self, field_name: &String) -> Option<&Vec<bool>> {
         self.boolean.get(field_name)
     }
+    /// Retrieve a floating-point field
     pub fn get_float_field(&self, field_name: &String) -> Option<&Vec<f64>> {
         self.float.get(field_name)
     }
 
+    /// Get the field information struct for a given field name
     pub fn get_fieldinfo(&self, field_name: &String) -> Option<&FieldInfo> {
         self.field_map.get(field_name).and_then(|&index| self.fields.get(index))
     }
 
+    /// Get the list of field information structs for this data store
     pub fn fields(&self) -> Vec<&FieldInfo> {
         self.fields.iter().map(|&ref s| s).collect()
     }
+    /// Get the field names in this data store
     pub fn fieldnames(&self) -> Vec<&String> {
         self.fields.iter().map(|ref s| &s.name).collect()
     }
 
+    /// Check if datastore is "homogenous": all columns (regardless of field type) are the same
+    /// length
     pub fn is_homogeneous(&self) -> bool {
         is_hm_homogeneous(&self.unsigned)
             .and_then(|x| is_hm_homogeneous_with(&self.signed, x))
@@ -241,6 +281,7 @@ impl DataStore {
             .and_then(|x| is_hm_homogeneous_with(&self.float, x))
             .is_some()
     }
+    /// Retrieve number of rows for this data store
     pub fn nrows(&self) -> usize {
         [max_len(&self.unsigned), max_len(&self.signed), max_len(&self.text),
             max_len(&self.boolean), max_len(&self.float)].iter().fold(0, |acc, l| max(acc, *l))

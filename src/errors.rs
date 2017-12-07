@@ -1,3 +1,6 @@
+// error_chain causes unused_doc_comment warnings
+#![allow(unused_doc_comment)]
+
 error_chain! {
     errors {
         DataFrameError(s: String) {

@@ -1,3 +1,7 @@
+//! Extract-Transform-Load (ETL) library for Rust.
+
+#![warn(missing_docs)]
+
 extern crate num;
 extern crate serde;
 extern crate serde_json;
