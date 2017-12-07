@@ -11,7 +11,7 @@ extern crate encoding;
 extern crate toml;
 #[macro_use] extern crate error_chain;
 
-extern crate matrix;
+extern crate wee_matrix as matrix;
 
 mod errors;
 
